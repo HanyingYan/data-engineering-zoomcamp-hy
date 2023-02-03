@@ -1,8 +1,8 @@
 # Week 2 Overview
 
-[2.1.1 - Data Lake](#2.1.1---data-lake)<br />
-[2.2.1 - Introduction to Workflow](#2.2.1---introduction-to-workflow)<br />
-[2.2.2 - Introduction to Prefect Concepts](#2.2.2---introduction-to-prefect-concepts)<br />
+[2.1.1 - Data Lake](#211---data-lake)<br />
+[2.2.1 - Introduction to Workflow](#221---introduction-to-workflow)<br />
+[2.2.2 - Introduction to Prefect Concepts](#222---introduction-to-prefect-concepts)<br />
 
 ## 2.1.1 - Data Lake
 **1. What is a Data Lake?**
