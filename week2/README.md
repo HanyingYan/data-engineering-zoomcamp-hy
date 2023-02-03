@@ -3,6 +3,9 @@
 [2.1.1 - Data Lake](#211---data-lake)<br />
 [2.2.1 - Introduction to Workflow](#221---introduction-to-workflow)<br />
 [2.2.2 - Introduction to Prefect Concepts](#222---introduction-to-prefect-concepts)<br />
+[2.2.3 - ETL with GCP & Prefect](#223---etl-with-gcp--prefect)<br />
+[2.2.4 - From Google Cloud Storage to Big Query](#224---from-google-cloud-storage-to-big-query)<br />
+
 
 ## 2.1.1 - Data Lake
 **1. What is a Data Lake?**
@@ -116,7 +119,6 @@ Prefect Orion UI allows us to see our flows in an interactive an intuitive web i
 * Notifications, that alerts us when something goes wrong.
 * Blocks, which allows us to store configurations and use them as an interface for interacting with external systems. In other words, we can securely store authentication credentials for different services, without the need to specify such credentials directly in our codes or command lines.
 
-
 **Step 4**<br />
 Create a new block for our PostgreSQL connector. In Prefect Orion UI:
 * click in "Blocks" and then "Add Block +". 
@@ -127,4 +129,63 @@ Create a new block for our PostgreSQL connector. In Prefect Orion UI:
 from prefect_sqlalchemy import SqlAlchemyConnector
 with SqlAlchemyConnector.load("postgres-connector") as database_block:
     ...
+```
+
+
+## 2.2.3 - ETL with GCP & Prefect
+**Step 1**<br />
+Write ETL script [*etl_web_to_gcs.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/etl_web_to_gcs.py) to save data downloaded from [archive place](https://github.com/DataTalksClub/nyc-tlc-data) locally to [data/yellow]().
+We divided the flow into 3 different task - fetch(E), clean(T) and write_local(L).<br />
+You can run Prefect Orion UI from terminal
+```
+prefect orion start
+```
+Please note that when you try to download data from a web, we can add the retries to our task function in case it doesn't work for some reasons. (line 8&11-12 of [*etl_web_to_gcs.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/etl_web_to_gcs.py)
+
+**Step 2**<br />
+Prefect Orion UI -> Blocks -> create new GCS Bucket Block to store our GCP credentials.<br />
+Please note you can first register it if GCS Bucket Block is not available by
+```
+prefect block register -m prefect_gcp
+```
+You can assign *gcp-zoomcamp* to Block Name, and the name of the bucket is unique, which you should already generated from week 1 with a name similar to *dtc_data_lake_dtc-de-373006*. <br />
+Then you may also need to create a GCP credential block if you don't have one. Mine is with name *gcp-zoomcamp-credentials*. And for the service account info, you can either inform the path of your json file (*/Users/hanying/Documents/data-engineering-zoomcamp-hy/dtc-de-373006-58eecc9ef188.json*), or paste the contents directly in the blue box under "The contents of the keyfile as dict".  <br />
+Please make sure you don't upload your credential .json files to github (by adding to your *.gitignore*) or other public space. <br />
+Now you can use this block as sugegsted with 
+```
+from prefect_gcp.cloud_storage import GcsBucket
+gcp_cloud_storage_bucket_block = GcsBucket.load("gcp-zoomcamp")
+```
+
+**Step 3**<br />
+Create a new task - write_gcs() and run [*etl_web_to_gcs.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/etl_web_to_gcs.py) to upload the local parquet data to our gcp bucket.
+```
+python etl_web_to_gcs.py
+```
+you can check the uploaded data in GCP -> your project -> cloud storage -> your bucket.
+
+
+## 2.2.4 - From Google Cloud Storage to Big Query
+**Step 1**<br />
+Create wo tasks extract_from_gcs(E) and transform(T) to make sure it download and fill missing data as expected.
+
+**Step 2**<br />
+Create a Biq Query database in GCP. We have already done this in week 1 using Terraform with database name trips_data_all.<br />
+Now we can create a data table manually with the similar information as below using the parquet data we uploaded to GCS bucket.
+![bq_create_table1.png](../img/bq_create_table1.png)
+
+You can now run the queries very efficiently as below.<br />
+![bq_create_table2.png](../img/bq_create_table2.png)
+
+**Step 3**<br />
+We can also write a task to crate the bigquery table - write_bq(L)
+Please note here we need to use GcpCredentials block we create last time and the following codes suggested.
+```
+from prefect_gcp import GcpCredentials
+gcp_credentials_block = GcpCredentials.load("gcp-zoomcamp-credentials")
+```
+
+Now if we drop the table we created manually and then run [*etl_gcs_to_bq.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/etl_gcs_to_bq.py)
+```
+python etl_gcs_to_bq.py
 ```
