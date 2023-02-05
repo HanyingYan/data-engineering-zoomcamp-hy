@@ -173,10 +173,10 @@ Create wo tasks extract_from_gcs(E) and transform(T) to make sure it download an
 **Step 2**<br />
 Create a Biq Query database in GCP. We have already done this in week 1 using Terraform with database name trips_data_all.<br />
 Now we can create a data table manually with the similar information as below using the parquet data we uploaded to GCS bucket.
-![bq_create_table1.png](../img/bq_create_table1.png)
+![bq_create_table1.png](./img/bq_create_table1.png)
 
 You can now run the queries very efficiently as below.<br />
-![bq_create_table2.png](../img/bq_create_table2.png)
+![bq_create_table2.png](./img/bq_create_table2.png)
 
 **Step 3**<br />
 We can also write a task to crate the bigquery table - write_bq(L)
@@ -196,7 +196,7 @@ python etl_gcs_to_bq.py
 **Step 1**<br />
 A flow can have multiple runs (instances) with different paremeters. Therefore, we run [*parameterized_flow.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/parameterized_flow.py) updated from [*etl_web_to_gcs.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/etl_web_to_gcs.py) to reuse the same flow to upload 3 different taxi trips datasets to our GCS Bucket.
 Please note that here we have a parant flow - etl_parent_flow() and for each month we ran a separate child flow - etl_web_to_gcs(), so in Prefect Orion UI, we can see the subflows, respectively.
-![elt_parent_flow_subflow.png](../img/elt_parent_flow_subflow.png)
+![elt_parent_flow_subflow.png](./img/elt_parent_flow_subflow.png)
 
 
 **Step 2**<br />
@@ -218,14 +218,14 @@ Then we can apply this yaml file to send all the metadata to Prefect API so that
 prefect deployment apply etl_parent_flow-deployment.yaml
 ```
 Now if you check Prefect -> Deployment, you will this etl_parent_flow/Parameterized_ETL with a blue switch indicating it is on. You can also switch it off.
-![deployment1.png](../img/deployment1.png)
+![deployment1.png](./img/deployment1.png)
 Then if you dive into it, you can add descriptions, see the metadata, and also trigger a quick run and custom run (to modify the parameters). 
-![deployment2.png](../img/deployment2.png)
+![deployment2.png](./img/deployment2.png)
 
 
 **Step 4**<br />
 If we trigger a quick run, in Prefect -> Flow Runs, we will find a new run in schduled state instead of running state.
-![schduled_run.png](../img/schduled_run.png)
+![schduled_run.png](./img/schduled_run.png)
 This is because Prefect knows it is ready to be run, but there is no agent picking up this run.<br />
 
 Agents consist of lightweight Python processes in our execution environment. They pick up scheduled workflow runs from Work Queues.<br />
@@ -242,5 +242,5 @@ And you will see the status changes from scheduled to pending, to running and fi
 **Step 5**<br />
 Here we have tested our codes, but in the future, if you have new scripts, you may want to create a notification in case that the codes may fail. <br />
 Or you just want to keep updated when there is a new flow running.
-![notification.png](../img/notification.png)
+![notification.png](./img/notification.png)
 
