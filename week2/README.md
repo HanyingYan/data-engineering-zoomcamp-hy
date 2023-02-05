@@ -5,6 +5,7 @@
 [2.2.2 - Introduction to Prefect Concepts](#222---introduction-to-prefect-concepts)<br />
 [2.2.3 - ETL with GCP & Prefect](#223---etl-with-gcp--prefect)<br />
 [2.2.4 - From Google Cloud Storage to Big Query](#224---from-google-cloud-storage-to-big-query)<br />
+[2.2.5 - Parametrizing Flow & Deployments with ETL into GCS flow](#225---parametrizing-flow--deployments-with-etl-into-gcs-flow)<br />
 
 
 ## 2.1.1 - Data Lake
@@ -189,3 +190,57 @@ Now if we drop the table we created manually and then run [*etl_gcs_to_bq.py*](h
 ```
 python etl_gcs_to_bq.py
 ```
+
+
+## 2.2.5 - Parametrizing Flow & Deployments with ETL into GCS flow
+**Step 1**<br />
+A flow can have multiple runs (instances) with different paremeters. Therefore, we run [*parameterized_flow.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/parameterized_flow.py) updated from [*etl_web_to_gcs.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/etl_web_to_gcs.py) to reuse the same flow to upload 3 different taxi trips datasets to our GCS Bucket.
+Please note that here we have a parant flow - etl_parent_flow() and for each month we ran a separate child flow - etl_web_to_gcs(), so in Prefect Orion UI, we can see the subflows, respectively.
+![elt_parent_flow_subflow.png](../img/elt_parent_flow_subflow.png)
+
+
+**Step 2**<br />
+To avoid the need for triggering our workflow manually, we can deploy the workflow using Prefect. In the terminal, we run the command shown below, which outputs a YAML file containing the workflow's deployment metadata.
+```
+prefect deployment build ./parameterized_flow.py:etl_parent_flow -n "Parameterized ETL"
+```
+Here, we specify the python script file name and the entry point flow, which is etl_parent_flow not the other one - etl_web_to_gcs in the script. We also assign a name - Parameterized ETL to this deployment.<br />
+Note this step will also generate a .prefectignore file.
+
+
+**Step 3**<br />
+In the etl_parent_flow-deployment.yaml generated, we can update the parameters to include inputs.
+```
+parameters : { "color": "yellow", "months": [1, 2, 3], "year": 2021 }
+```
+Then we can apply this yaml file to send all the metadata to Prefect API so that it knows we are scheduling this flow.
+```
+prefect deployment apply etl_parent_flow-deployment.yaml
+```
+Now if you check Prefect -> Deployment, you will this etl_parent_flow/Parameterized_ETL with a blue switch indicating it is on. You can also switch it off.
+![deployment1.png](../img/deployment1.png)
+Then if you dive into it, you can add descriptions, see the metadata, and also trigger a quick run and custom run (to modify the parameters). 
+![deployment2.png](../img/deployment2.png)
+
+
+**Step 4**<br />
+If we trigger a quick run, in Prefect -> Flow Runs, we will find a new run in schduled state instead of running state.
+![schduled_run.png](../img/schduled_run.png)
+This is because Prefect knows it is ready to be run, but there is no agent picking up this run.<br />
+
+Agents consist of lightweight Python processes in our execution environment. They pick up scheduled workflow runs from Work Queues.<br />
+And work queues coordinate many deployments with many agents by collecting scheduled workflow runs for deployment according to some filtering criteria.
+Check here for a better understanding of agents and [work queues](https://docs.prefect.io/concepts/work-queues/)<br />
+
+Now if We launch an agent with the following command. The agent will pulls work from the 'default' work queue to execute flow runs from our deployment.
+```
+prefect agent start -q 'default'
+```
+And you will see the status changes from scheduled to pending, to running and finally to completed.
+
+
+**Step 5**<br />
+Here we have tested our codes, but in the future, if you have new scripts, you may want to create a notification in case that the codes may fail. <br />
+Or you just want to keep updated when there is a new flow running.
+![notification.png](../img/notification.png)
+
