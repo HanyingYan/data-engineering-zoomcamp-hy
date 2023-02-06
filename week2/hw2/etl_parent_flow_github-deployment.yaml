@@ -1,0 +1,63 @@
+###
+### A complete description of a Prefect Deployment for flow 'etl-parent-flow'
+###
+name: hw2_q4
+description: null
+version: 98f763f1bcd7e470be632ef32032eeb5
+# The work queue that will handle this deployment's runs
+work_queue_name: default
+tags: []
+parameters: {}
+schedule: null
+infra_overrides: {}
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  name: null
+  command: null
+  stream_output: true
+  working_dir: null
+  block_type_slug: process
+  _block_type_slug: process
+
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: etl-parent-flow
+manifest_path: null
+storage:
+  repository: https://github.com/HanyingYan/data-engineering-zoomcamp-hy.git
+  reference: null
+  access_token: null
+  _block_document_id: 22d6174c-279a-4dce-9819-7ad9aff393e2
+  _block_document_name: github-zoom
+  _is_anonymous: false
+  block_type_slug: github
+  _block_type_slug: github
+path: ''
+entrypoint: week2/hw2/parameterized_etl_web_to_gcs_green_hy.py:etl_parent_flow
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties:
+    months:
+      title: months
+      default:
+      - 11
+      position: 0
+      type: array
+      items:
+        type: integer
+    year:
+      title: year
+      default: 2020
+      position: 1
+      type: integer
+    color:
+      title: color
+      default: green
+      position: 2
+      type: string
+  required: null
+  definitions: null
