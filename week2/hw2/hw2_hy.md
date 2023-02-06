@@ -155,8 +155,8 @@ How many rows were processed by the script?
 
 ----------------------------------
 Created a github block with name = github-zoom and github repo = https://github.com/HanyingYan/data-engineering-zoomcamp-hy.git<br />
-Then I modifed `web_to_gcs` script to get [*parameterized_etl_web_to_gcs_green_hy.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/hw2/parameterized_etl_web_to_gcs_green_hy.py)
-Then from the root of this repo, we can run 
+Then I modifed `web_to_gcs` script to get [*parameterized_etl_web_to_gcs_green_hy.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/hw2/parameterized_etl_web_to_gcs_green_hy.py)<br />
+Then from the root of this repo, we can run the following code and get [*etl_parent_flow_github-deployment.yaml*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/hw2/etl_parent_flow_github-deployment.yaml)
 ```
 prefect deployment build week2/hw2/parameterized_etl_web_to_gcs_green_hy.py:etl_parent_flow -n "hw2_q4" -sb github/github-zoom -o week2/hw2/etl_parent_flow_github-deployment.yaml --apply
 ```
@@ -368,6 +368,24 @@ State message: All states completed.
 Prefect NotificationsPrefect Notifications | Today at 11:19 AM
 ```
 **Answer: 514392**
+
+Or we can use Prefect Cloud<bt />
+1. sign in to [app.prefect.cloud](app.prefect.cloud) with my gmail account and create an API key called de-zoomcamp which expires on April 30.<br />
+2. sign in from terminal.<bt />
+```
+prefect cloud login -k your-api-key-here
+```
+3. create the blocks needed - github, gcs bucket and gcs credentials.<br />
+4. build and apply the deployment of the flow, generate the [*etl_parent_flow_github-deployment-2.yaml*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/hw2/etl_parent_flow_github-deployment-2.yaml)<br />
+```
+prefect deployment build week2/hw2/parameterized_etl_web_to_gcs_green_hy.py:etl_parent_flow -n "hw2_q4-2" -sb github/github-zoom -o week2/hw2/etl_parent_flow_github-deployment-2.yaml --apply
+```
+5. create a email block and an automation with action to send a notification using email block when triggered by a completed run of flow etl_web_to_gcs<br />
+6. run the deployment<br />
+```
+prefect deployment run "etl-parent-flow/hw2_q4-2" -p "months=[4]" -p "year=2019"
+prefect agent start -q 'default'
+```
 
 ## Question 6. Secrets
 
