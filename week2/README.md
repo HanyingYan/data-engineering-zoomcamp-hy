@@ -6,10 +6,10 @@
 [2.2.3 - ETL with GCP & Prefect](#223---etl-with-gcp--prefect)<br />
 [2.2.4 - From Google Cloud Storage to Big Query](#224---from-google-cloud-storage-to-big-query)<br />
 [2.2.5 - Parametrizing Flow & Deployments with ETL into GCS flow](#225---parametrizing-flow--deployments-with-etl-into-gcs-flow)<br />
-[2.2.6 - Schedules & Docker Storage with Infrastructure](#226---schedules--docker-storage-with-infrastructure)
+[2.2.6 - Schedules & Docker Storage with Infrastructure](#226---schedules--docker-storage-with-infrastructure)<br />
+[2.2.7 - Prefect Cloud/Additional resources](#227---prefect-cloudadditional-resources)
 
-
-## 2.1.1 - Data Lake
+## [2.1.1 - Data Lake](https://www.youtube.com/watch?v=W3Zm6rjOq70&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=17)
 **1. What is a Data Lake?**
 * Data Lake is a central repository that holds big data from many sources, structured, semi-structured or even unstructured. The idea is to ingest data as quickly as possible and make it available or accessible to other team members like DS, DA, DE.etc<br />
 * Generally in your data lake you would associate some sort of metadata for faster access.<br />
@@ -45,7 +45,7 @@ On the other hand, a Data Warehouse stores structured data for analytics and bat
 * AZURE - AZURE BLOB
 
 
-## 2.2.1 - Introduction to Workflow
+## [2.2.1 - Introduction to Workflow](https://www.youtube.com/watch?v=8oLs6pzHp68&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=18)
 **1. Data Flow and Data Flow Diagram**<br />
 [Data flow](https://en.wikipedia.org/wiki/Dataflow) is the transfer of data from a source to a destination.  If we get more technical, an ETL (extract, transform, load) process is a type of data flow.<br />
 A [data flow diagram (DFD)](https://en.wikipedia.org/wiki/Data-flow_diagram) is a way of representing a flow of data through a process or a system (usually an information system). And it is a Directed Acyclic Graph (DAG) with arrows to indicate direction, and acyclic so no cycle with clear dependency.
@@ -60,7 +60,7 @@ Workflow engines as tools let us define the DAG and parametrize the graph, they 
 * Apache Airflow
 
 
-## 2.2.2 - Introduction to Prefect Concepts
+## [2.2.2 - Introduction to Prefect Concepts](https://www.youtube.com/watch?v=cdtN6dhp708&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=19)
 **Step 1**<br />
 start PostgreSQL and PgAdmin4 using docker-compose with [*docker-compose.yml*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/docker-compose.yml)
 ```
@@ -134,7 +134,7 @@ with SqlAlchemyConnector.load("postgres-connector") as database_block:
 ```
 
 
-## 2.2.3 - ETL with GCP & Prefect
+## [2.2.3 - ETL with GCP & Prefect](https://www.youtube.com/watch?v=W-rMz_2GwqQ&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=20)
 **Step 1**<br />
 Write ETL script [*etl_web_to_gcs.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/etl_web_to_gcs.py) to save data downloaded from [archive place](https://github.com/DataTalksClub/nyc-tlc-data) locally to [data/yellow]().
 We divided the flow into 3 different task - fetch(E), clean(T) and write_local(L).<br />
@@ -167,7 +167,7 @@ python etl_web_to_gcs.py
 you can check the uploaded data in GCP -> your project -> cloud storage -> your bucket.
 
 
-## 2.2.4 - From Google Cloud Storage to Big Query
+## [2.2.4 - From Google Cloud Storage to Big Query](https://www.youtube.com/watch?v=Cx5jt-V5sgE&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=21)
 **Step 1**<br />
 Create wo tasks extract_from_gcs(E) and transform(T) to make sure it download and fill missing data as expected.
 
@@ -193,7 +193,7 @@ python etl_gcs_to_bq.py
 ```
 
 
-## 2.2.5 - Parametrizing Flow & Deployments with ETL into GCS flow
+## [2.2.5 - Parametrizing Flow & Deployments with ETL into GCS flow](https://www.youtube.com/watch?v=QrDxPjX10iw&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=22)
 **Step 1**<br />
 A flow can have multiple runs (instances) with different paremeters. Therefore, we run [*parameterized_flow.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/parameterized_flow.py) updated from [*etl_web_to_gcs.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/etl_web_to_gcs.py) to reuse the same flow to upload 3 different taxi trips datasets to our GCS Bucket.
 Please note that here we have a parant flow - etl_parent_flow() and for each month we ran a separate child flow - etl_web_to_gcs(), so in Prefect Orion UI, we can see the subflows, respectively.
@@ -247,7 +247,7 @@ Or you just want to keep updated when there is a new flow running.
 
 
 
-## 2.2.6 - Schedules & Docker Storage with Infrastructure
+## [2.2.6 - Schedules & Docker Storage with Infrastructure](https://www.youtube.com/watch?v=psNSzqTsi-s&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=23)
 **1. Scheduling Flows** 
 * Scheduling on Orion UI<br />
 Suppose we want our workflow to run every 5 minutes. We can do that in Orion UI by clicking on our deployment and on "Add" under "Schedule".<br />
@@ -349,4 +349,11 @@ I encountered two errors during step 3 as blow.
     RuntimeError: Unable to load 'zoomcamp-gcs' of block type None due to failed validation. To load without validation, try loading again with `validate=False`.
 
     ```
-    This is because when creating the GCS Bucket block, I used a "Service Account File" to set the value of the GCP Credentials block. Then, the JSON file cannot be found by Prefect inside the Docker container. To circumvent this problem, we can just edit our GCP Credentials block and paste the content of our Service Account File as a secret dictionary ("Service Account Info") in the block. See this thread in Slack.
+    This is because when creating the GCS Bucket block, I used a "Service Account File" to set the value of the GCP Credentials block. Then, the JSON file cannot be found by Prefect inside the Docker container. To circumvent this problem, we can just edit our GCP Credentials block and paste the content of our Service Account File as a secret dictionary ("Service Account Info") in the block.
+
+
+## [2.2.7 - Prefect Cloud/Additional resources](https://www.youtube.com/watch?v=gGC23ZK7lr8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=25)
+[Prefect Doc](https://docs.prefect.io/)<br />
+[Prefect Cloud](https://www.prefect.io/cloud/)<br />
+[Anna Geller's GitHub](https://github.com/anna-geller)<br />
+[Prefect Community](https://discourse.prefect.io/)<br />
