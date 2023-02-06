@@ -6,7 +6,7 @@ from random import randint
 from prefect.tasks import task_input_hash
 from datetime import timedelta
 
-@task(retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
+@task(retries=3)#, cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
 def fetch(dataset_url: str):
     """Read taxi data from web into pandas DataFrame"""
     df = pd.read_csv(dataset_url)
