@@ -6,6 +6,7 @@
 [2.2.3 - ETL with GCP & Prefect](#223---etl-with-gcp--prefect)<br />
 [2.2.4 - From Google Cloud Storage to Big Query](#224---from-google-cloud-storage-to-big-query)<br />
 [2.2.5 - Parametrizing Flow & Deployments with ETL into GCS flow](#225---parametrizing-flow--deployments-with-etl-into-gcs-flow)<br />
+[2.2.6 - Schedules & Docker Storage with Infrastructure](#226---schedules--docker-storage-with-infrastructure)
 
 
 ## 2.1.1 - Data Lake
@@ -225,7 +226,7 @@ Then if you dive into it, you can add descriptions, see the metadata, and also t
 
 **Step 4**<br />
 If we trigger a quick run, in Prefect -> Flow Runs, we will find a new run in schduled state instead of running state.
-![schduled_run.png](./img/schduled_run.png)
+![schduled_run.png](./img/schduled_run.png)<br />
 This is because Prefect knows it is ready to be run, but there is no agent picking up this run.<br />
 
 Agents consist of lightweight Python processes in our execution environment. They pick up scheduled workflow runs from Work Queues.<br />
@@ -244,3 +245,108 @@ Here we have tested our codes, but in the future, if you have new scripts, you m
 Or you just want to keep updated when there is a new flow running.
 ![notification.png](./img/notification.png)
 
+
+
+## 2.2.6 - Schedules & Docker Storage with Infrastructure
+**1. Scheduling Flows** 
+* Scheduling on Orion UI<br />
+Suppose we want our workflow to run every 5 minutes. We can do that in Orion UI by clicking on our deployment and on "Add" under "Schedule".<br />
+Then you can change the value/start date .etc to customize your schedule.<br />
+![schedule1.png](./img/schedule1.png)<br />
+Then after 5 mins, you will find a scheduled parent flow run followed by 3 subflow runs for each of the month of the parameters in the yaml.<br />
+![schedule2.png](./img/schedule2.png)
+
+* Scheduling when creating Deployments (via CLI)<br />
+Using the code below, we can build and apply a new deployment named etl2 with a specified schedule in type cron - which means run at 12:00 AM every day
+    ```
+    prefect deployment build parameterized_flow.py:etl_parent_flow -n etl2 --cron "0 0 * * *" -a
+    ```
+    Now you will have this new deployment at 12:00AM every day (UTC) and 2 scheduled runs as below. <br /> 
+    ![schedule3.png](./img/schedule3.png)
+
+* Scheduling after you've created a Deployment (via CLI)<br />
+    You can run the following code the get help with deployment
+    ```
+    prefect deployment --hep
+    prefect set-schedule --hep
+    ```
+    For example, here we learn that we can use the following code the create a new schedule to run at 01:00 AM every day
+    ```
+    prefect deployment set-schedule etl-parent-flow/etl2 --cron "0 1 * * *"
+    ```
+    ![schedule4.png](./img/schedule4.png)
+
+
+**2. Run Flows on Docker Containers** 
+We can put our flow code storage in a lot of different places. Before, we had it running on our local machine. But if we want to have other people be able to access our flow code, we can put it on version control systems e.g. GitHub, or cloud storages e.g. AWS S3, Google Cloud Storage, Azure blob storage. <br />
+Another option we use here to make our workflows production-ready is to store our code in a Docker image, then put it on Docker Hub, and if we run a Docker container, the code will be right there. <br />
+
+
+**Step 1. Docker Containers: Dockerfile, Build and Publish **<br />
+First, we write a Dockerfile for our workflow, then login to DockerHub, create an image repository, and finally push the image. In the commands, change "hanyingyan" to your DockerHub username.
+```
+docker image build --no-cache -t hanyingyan/prefect:zoom .
+docker login
+docker image push hanyingyan/prefect:zoom
+```
+Now if you got to DockerHub, you will find a repo similar as below<br />
+![dockerhub.png](./img/dockerhub.png)
+
+
+**Step 2**<br />
+We need to create a Docker infrastructure block. I assigned "docker-zoom" to block name and set Image to "hanyingyan/prefect:zoom", ImagePullPolicy to "Always" and Auto Remove to true.<br />
+![docker_container.png](./img/docker_container.png)<br />
+You can also use this code [*make_docker_block.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/make_docker_block.py) to create block, just make sure to update the image and docker name you want to use.<br />
+Now you can use the block as below.
+```
+from prefect.infrastructure.docker import DockerContainer
+docker_container_block = DockerContainer.load("docker-zoom")
+```
+
+
+**Step 3**<br />
+Create deployment. This time, we deploy our container using Python code, see [*docker_deploy.py*](https://github.com/HanyingYan/data-engineering-zoomcamp-hy/blob/main/week2/docker_deploy.py).<br />
+```
+python docker_deploy.py
+```
+![docker_deployment.png](./img/docker_deployment.png)
+
+```
+prefect profile ls
+```
+You will most likely have the only one profile default.<br />
+Then you can view and change the settings for the current profile.<br />
+```
+prefect config view
+prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+```
+Now your docker container will be able to interface with Prefect Orion UI.<br />
+
+Now we can fire an agent and run
+```
+prefect agent start -q default
+prefect deployment run etl-parent-flow/docker-flow -p "months=[2, 3]"
+```
+
+
+**Problems during Step 3**
+I encountered two errors during step 3 as blow.
+
+* Problem 1
+    ```
+    Finished in state Failed('Flow run encountered an exception. ValueError: Path /Users/hanying/.prefect/storage/282f1fe3bbc24ca5879cf7726ceb4190 does not exist.\n')
+    ```
+    This has something to do with the task caching parameters that we set in the function fetch in parameterized_flow.py. The easiest solution to this problem is to remove cache_key_fn and cache_expiration parameters.
+
+
+* Problem 2
+    ```
+    pydantic.error_wrappers.ValidationError: 1 validation error for GcsBucket gcp_credentials -> service_account_file
+    The provided path to the service account is invalid (type=value_error)
+
+    The above exception was the direct cause of the following exception:
+    ...
+    RuntimeError: Unable to load 'zoomcamp-gcs' of block type None due to failed validation. To load without validation, try loading again with `validate=False`.
+
+    ```
+    This is because when creating the GCS Bucket block, I used a "Service Account File" to set the value of the GCP Credentials block. Then, the JSON file cannot be found by Prefect inside the Docker container. To circumvent this problem, we can just edit our GCP Credentials block and paste the content of our Service Account File as a secret dictionary ("Service Account Info") in the block. See this thread in Slack.
