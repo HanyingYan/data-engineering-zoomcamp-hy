@@ -1,6 +1,7 @@
 # Week 3 Overview
 
 [3.1.1 - Data Warehouse and BigQuery](#311---data-warehouse-and-bigquery)<br />
+[3.1.2 - Partitioning and Clustering](#312---partitioning-and-clustering)<br />
 
 
 ## [3.1.1 - Data Warehouse and BigQuery](https://www.youtube.com/watch?v=jrHljAoD6nM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=25)
@@ -117,4 +118,21 @@ WHERE DATE(tpep_pickup_datetime) BETWEEN '2021-01-01' and '2021-10-31'
 AND PULocationID = 132;
 ```
 ![cluster_table2.png](./img/cluster_table2.png)<br />
+
+
+## [3.1.2 - Partitioning and Clustering](https://www.youtube.com/watch?v=-CqXf7vhhDs&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=26)
+**1. BigQuery Partition**<br />
+we can partition data by a time-unit column, ingestion time (_PARTITIONTIME) or an integer range partitioning. <br />
+When partitioning data, to achieve its full potential, we would prefer evenly distributed partitions. In addition, we must take into account the number of partitions that we will need. <br />
+When using Time unit or ingestion time, we do it Daily by Default, but you can also use Hourly, Monthly or yearly based on how large you data is. <br />BigQuery limits the number of partitions to 4000.
+
+**2. BigQuery Clustering**<br />
+When clustering, a maximum of four columns can be used and the order that are specified is important to determine how the data will be sorted. <br />Clustering improves filtering and aggregation queries, but typically doesn't show much improvement for tables with less than 1 GB of data.<br />
+
+**3. Partitioning vs Clustering**<br />
+![comparison.png](./img/comparison.png)<br />
+It is usually better to using Clustering when: 
+* partitioning creates small partitions (e.g., each partition < 1 GB)
+* partitionining generates more than 4000 partitions
+* we need to update/modify data in the majority of partitions on a frequent basis.
 
