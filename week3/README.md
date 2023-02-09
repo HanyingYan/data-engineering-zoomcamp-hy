@@ -3,7 +3,7 @@
 [3.1.1 - Data Warehouse and BigQuery](#311---data-warehouse-and-bigquery)<br />
 [3.1.2 - Partitioning and Clustering](#312---partitioning-and-clustering)<br />
 [3.2.1 - BigQuery Best Practices](#321---bigquery-best-practices)<br />
-
+[3.2.2 - Internals of BigQuery](#322---internals-of-bigquery)<br />
 
 ## [3.1.1 - Data Warehouse and BigQuery](https://www.youtube.com/watch?v=jrHljAoD6nM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=25)
 **1. OLAP vs. OLTP**<br />
@@ -153,3 +153,11 @@ It is usually better to using Clustering when:
 * Reduce data before performing a join operation.
 * Order statements must be last part of the query to optimize performance.
 * Place the table with the largest number of rows first, followed by the table with the fewest rows, and then place the remaining tables by decreasing sizes.
+
+
+## [3.2.2 - Internals of BigQuery](https://www.youtube.com/watch?v=eduHi1inM4s&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=28)
+**Colossus**: Google's distributed file storage that stores data in a columnar format. Colossus is generally cheap because it is separated from computation.<br />
+**Jupiter**: Google needs a very fast network for communication since compute and storage are in different hardware. Jupiter is the network that is implemented inside Google's datacenter and has ~1TB bandwidth.<br />
+**Dremel**: The query execution engine. Dremel breaks each query into a tree structure, whose parts are executed in parallel across several nodes.<br />
+![bigquery_internals](./img/bigquery_internals.jpg)<br />
+**Column-oriented storage**: Type of storage that is optimized for querying subsets of columns from tables. It is also efficient for performing filtering or aggregation functions over columns. The other type is **record-oriented storage**, which is something very similar to csv.
