@@ -2,6 +2,7 @@
 
 [3.1.1 - Data Warehouse and BigQuery](#311---data-warehouse-and-bigquery)<br />
 [3.1.2 - Partitioning and Clustering](#312---partitioning-and-clustering)<br />
+[3.2.1 - BigQuery Best Practices](#321---bigquery-best-practices)<br />
 
 
 ## [3.1.1 - Data Warehouse and BigQuery](https://www.youtube.com/watch?v=jrHljAoD6nM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=25)
@@ -136,3 +137,19 @@ It is usually better to using Clustering when:
 * partitionining generates more than 4000 partitions
 * we need to update/modify data in the majority of partitions on a frequent basis.
 
+
+## [3.2.1 - BigQuery Best Practices](https://www.youtube.com/watch?v=k81mLJVX08w&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=27)
+**1. Cost reduction**<br />
+* Avoid ```SELECT *```. It is much better to specify a particular subset of columns to reduce the amount of scanned data.
+* Price queries before running them.
+* Use clustered or partitioned tables to optimize the number of scanned records.
+* Use streaming inserts with caution, because they could drastically increase the costs.
+* Materialize query results in different stages.
+
+**2. Query performance**<br />
+* Always filter data using partitioned or clustered columns.
+* Use denormalized data that facilitate analytical queries.
+* Excess usage of external storage might incur in more costs.
+* Reduce data before performing a join operation.
+* Order statements must be last part of the query to optimize performance.
+* Place the table with the largest number of rows first, followed by the table with the fewest rows, and then place the remaining tables by decreasing sizes.
