@@ -5,6 +5,8 @@
 [3.2.1 - BigQuery Best Practices](#321---bigquery-best-practices)<br />
 [3.2.2 - Internals of BigQuery](#322---internals-of-bigquery)<br />
 [3.3.1 - BigQuery Machine Learning](#331---bigquery-machine-learning)<br />
+[3.3.2 - BigQuery Machine Learning deployment](#332---bigquery-machine-learning-deployment)<br />
+
 
 ## [3.1.1 - Data Warehouse and BigQuery](https://www.youtube.com/watch?v=jrHljAoD6nM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=25)
 **1. OLAP vs. OLTP**<br />
@@ -300,3 +302,61 @@ tip_amount IS NOT NULL;
 You can find more parameters for regression [here](https://cloud.google.com/bigquery-ml/docs/reference/standard-sql/bigqueryml-syntax-create-glm).<br />
 All the detailed parameters and usage can be found at [BigQuery ML Tutorials](https://cloud.google.com/bigquery-ml/docs/tutorials).<br />
 The complete sql code can be found [here](./big_query_ml.sql).
+
+
+## [3.3.2 - BigQuery Machine Learning deployment](https://www.youtube.com/watch?v=BjARzEWaznU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=30)
+**Step 1. Export the model to GCS**
+```
+gcloud auth login
+bq --project_id dtc-de-373006 extract -m trips_data_all.tip_model gs://dtc_data_lake_dtc-de-373006/tip_model
+```
+Then you will find the model in your GCS as below.<br />
+![tip_model.png](./img/tip_model.png)<br />
+
+**Step 2. Download to Local File System**
+```
+mkdir /tmp/model
+gsutil cp -r gs://dtc_data_lake_dtc-de-373006/tip_model /tmp/model
+```
+
+**Step 3. Deploy the Model**
+```
+#create a serving direcotry for model version 1
+mkdir -p serving_dir/tip_model/1
+cp -r /tmp/model/tip_model/* serving_dir/tip_model/1
+#pull the tensorflow image and run the container
+docker pull tensorflow/serving
+docker run -p 8501:8501 --mount type=bind,source=/Users/hanying/Documents/data-engineering-zoomcamp-hy/week3/serving_dir/tip_model,target=/models/tip_model -e MODEL_NAME=tip_model -t tensorflow/serving &
+```
+
+**Step 4. HTTP Request**<br />
+First, go to 
+[http://localhost:8501/v1/models/tip_model](http://localhost:8501/v1/models/tip_model).<br />
+If you see
+```
+{
+ "model_version_status": [
+  {
+   "version": "1",
+   "state": "AVAILABLE",
+   "status": {
+    "error_code": "OK",
+    "error_message": ""
+   }
+  }
+ ]
+}
+```
+That means you have successfully deployed the model, and then you can use the model to make predictions.
+```
+curl -d '{"instances": [{"passenger_count":1, "trip_distance":12.2, "PULocationID":"193", "DOLocationID":"264", "payment_type":"2","fare_amount":20.4,"tolls_amount":0.0}]}' -X POST http://localhost:8501/v1/models/tip_model:predict
+```
+It generates the following predictions using the model
+```
+{
+    "predictions": [[-0.70019899062026525]
+    ]
+}
+```
+All the commands above can be found at [extract_model.md](./extract_model.md)<br />
+Google cloud BiqQuery Model Export document is [here](https://cloud.google.com/bigquery-ml/docs/export-model-tutorial). 
