@@ -1,0 +1,55 @@
+###
+### A complete description of a Prefect Deployment for flow 'etl-parent-flow'
+###
+name: hw3_q1
+description: null
+version: ac11c6aa0fffbfa9440553b2ec7538d5
+# The work queue that will handle this deployment's runs
+work_queue_name: default
+tags: []
+parameters: {}
+schedule: null
+infra_overrides: {}
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  name: null
+  command: null
+  stream_output: true
+  working_dir: null
+  block_type_slug: process
+  _block_type_slug: process
+
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: etl-parent-flow
+manifest_path: null
+storage: null
+path: /Users/hanying/Documents/data-engineering-zoomcamp-hy/week3
+entrypoint: hw3/etl_github_fhv_to_gcs.py:etl_parent_flow
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties:
+    months:
+      title: months
+      default:
+      - 1
+      position: 0
+      type: array
+      items:
+        type: integer
+    year:
+      title: year
+      default: 2019
+      position: 1
+      type: integer
+    color:
+      title: color
+      default: fhv
+      position: 2
+      type: string
+  required: null
+  definitions: null
