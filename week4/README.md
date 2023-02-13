@@ -1,6 +1,7 @@
 # Week 4 Overview
 
 [4.1.1 - Analytics Engineering Basics](#411---analytics-engineering-basics)<br />
+[4.1.2 - What is dbt](#412---what-is-dbt)<br />
 
 
 ## [4.1.1 - Analytics Engineering Basics](https://www.youtube.com/watch?v=uF76d5EmdtU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
@@ -79,3 +80,39 @@ To better understand the architecture of Dimensional Modeling, we can draw an an
   * Final presentation of the data.
   * Exposure to business stakeholder.
   * Similar to the dining room in a restaurant.
+
+
+## [4.1.2 - What is dbt](https://www.youtube.com/watch?v=4eCouvVOJUw&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=32)
+**1. What is dbt?**<br />
+**dbt** stands for **data build tool**. It's a ***transformation*** tool, which allows us to process raw data in our Data Warehouse to transformed data which can be later used by Business Intelligence tools and any other data consumers.<br />
+
+dbt also allows us to introduce good software engineering practices by defining a deployment workflow:
+* Develop models
+* Test and document models
+* Deploy models with version control and CI/CD.
+
+**2. How does dbt work?**<br />
+dbt works by defining a ***modeling layer*** that sits on top of our Data Warehouse. The modeling layer will turn tables into models which we will then transform into derived models, which can be then stored into the Data Warehouse for persistence.
+
+A **model** is a .sql file with a SELECT statement; no DDL or DML is used. dbt will compile the file and run it in our Data Warehouse.
+
+**3. How to use dbt?**<br />
+dbt has 2 main components: dbt Core and dbt Cloud:
+* dbt Core: open-source project that allows the data transformation.
+  * Builds and runs a dbt project (.sql and .yaml files).
+  * Includes SQL compilation logic, macros and database adapters.
+  * Includes a CLI interface to run dbt commands locally.
+  * Open-source and free to use.
+* dbt Cloud: SaaS application to develop and manage dbt projects.
+  * Web-based IDE to develop, run and test a dbt project.
+  * Jobs orchestration.
+  * Logging and alerting.
+  * Intregrated documentation.  
+  * Free for individuals (one developer seat).
+
+![dbt.png](./img/dbt.png)<br />
+* For integration with BigQuery we will use the dbt Cloud IDE, so a local installation of dbt core isn't required. 
+* For developing locally rather than using the Cloud IDE, dbt Core is required. Using dbt with a local Postgres database can be done with dbt Core, which can be installed locally and connected to Postgres and run models through the CLI.
+
+
+
