@@ -2,7 +2,7 @@
 
 [4.1.1 - Analytics Engineering Basics](#411---analytics-engineering-basics)<br />
 [4.1.2 - What is dbt](#412---what-is-dbt)<br />
-
+[4.2.1 - BigQuery and dbt Cloud](#421---bigquery-and-dbt-cloud)<br />
 
 ## [4.1.1 - Analytics Engineering Basics](https://www.youtube.com/watch?v=uF76d5EmdtU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
 **1. What is Analytics Engineering?**<br />
@@ -114,5 +114,14 @@ dbt has 2 main components: dbt Core and dbt Cloud:
 * For integration with BigQuery we will use the dbt Cloud IDE, so a local installation of dbt core isn't required. 
 * For developing locally rather than using the Cloud IDE, dbt Core is required. Using dbt with a local Postgres database can be done with dbt Core, which can be installed locally and connected to Postgres and run models through the CLI.
 
+## [4.2.1 - BigQuery and dbt Cloud](https://www.youtube.com/watch?v=iMxh6s_wL4Q&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=33)
+Step1. In order to use dbt Cloud you will need to create a user account. Got to the [dbt homepage](https://www.getdbt.com/) and sign up.<br />
+Step2. Create a BigQuery [service account](https://console.cloud.google.com/apis/credentials/wizard), simply use bq admin, and generate a JSON key.<br />
+Step3. Create a dbt project, select Bigquery as the data warehouse and use the JSON key to set up. Then add a [GH repo](https://github.com/HanyingYan/ny_taxi_rides_zoomcamp) for the project (with a new dev branch) and deploy a key to allow write access.
+Then if you go to your projects in dbt cloud, it will look some like this:<br />
+![dbt_project.png](./img/dbt_project.png)<br />
+Step 4. Open the IDE, switch to dev branch and go initialize your project by click that button, dbt will create everything for you automatically.<br />
+![dbt_init.png](./img/dbt_init.png)<br />
+Step 5. Inside dbt_project.yml, change the project name both in the name field as well as right below the models: block. You may comment or delete the example block at the end. Please note we would get stuck in read-only mode if we had chosen to work on the master branch.<br />
 
-
+A step by step guidance can be found [here](https://github.com/DataTalksClub/data-engineering-zoomcamp/blob/main/week_4_analytics_engineering/dbt_cloud_setup.md)
