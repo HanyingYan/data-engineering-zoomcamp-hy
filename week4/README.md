@@ -3,6 +3,7 @@
 [4.1.1 - Analytics Engineering Basics](#411---analytics-engineering-basics)<br />
 [4.1.2 - What is dbt](#412---what-is-dbt)<br />
 [4.2.1 - BigQuery and dbt Cloud](#421---bigquery-and-dbt-cloud)<br />
+[4.3.1 - Build the First dbt Models](#431---build-the-first-dbt-models)
 
 ## [4.1.1 - Analytics Engineering Basics](https://www.youtube.com/watch?v=uF76d5EmdtU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
 **1. What is Analytics Engineering?**<br />
@@ -124,4 +125,24 @@ Step 4. Open the IDE, switch to dev branch and go initialize your project by cli
 ![dbt_init.png](./img/dbt_init.png)<br />
 Step 5. Inside dbt_project.yml, change the project name both in the name field as well as right below the models: block. You may comment or delete the example block at the end. Please note we would get stuck in read-only mode if we had chosen to work on the master branch.<br />
 
-A step by step guidance can be found [here](https://github.com/DataTalksClub/data-engineering-zoomcamp/blob/main/week_4_analytics_engineering/dbt_cloud_setup.md)
+A step by step guidance can be found [here](https://github.com/DataTalksClub/data-engineering-zoomcamp/blob/main/week_4_analytics_engineering/dbt_cloud_setup.md).
+
+Note: We should also prepare the Yellow taxi data - Years 2019 and 2020, Green taxi data - Years 2019 and 2020, and fhv data - Year 2019.<br />
+I upload them to GCS dtc_data_lake_dtc-de-373006/data using my prefect cloud deployments docker-flow and hw2_q4-2. The fhv data were uploaded during hw3.<br />
+My dtc-de-373006 project database trips_data_all dataset were by default set to location europe-west6. To avoid BigQuery ocation connection issues - [404 Not found: Dataset was not found in location US](https://docs.google.com/document/d/19bnYs80DwuUimHM65UV3sylsCn2j1vziPOwzBwQrebw/edit#heading=h.xdwo41mql7gt), I create a new dataset with the same location (europe-west6) named dtb_hanyingyan (same as the dbt cloud project write location I will set up later). And we also need to load the green_tripdata and yellow_tripdata tables to trips_data_all.
+```
+CREATE OR REPLACE EXTERNAL TABLE `dtc-de-373006.trips_data_all.yellow_tripdata`
+OPTIONS (
+  format = 'PARQUET',
+  uris = ['gs://dtc_data_lake_dtc-de-373006/data/yellow/yellow_tripdata_20*.parquet']
+);
+
+CREATE OR REPLACE EXTERNAL TABLE `dtc-de-373006.trips_data_all.green_tripdata`
+OPTIONS (
+  format = 'PARQUET',
+  uris = ['gs://dtc_data_lake_dtc-de-373006/data/green/green_tripdata_20*.parquet']
+);
+
+SELECT COUNT(1) FROM `dtc-de-373006.trips_data_all.yellow_tripdata`;
+SELECT COUNT(1) FROM `dtc-de-373006.trips_data_all.green_tripdata`;
+```
