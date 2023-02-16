@@ -335,3 +335,273 @@ Now if we run ```dbt run --select sgt_green_tripdata```we will update our view f
 ![sgt_green_detail1.png](./img/sgt_green_detail1.png)<br />
 to <br />
 ![sgt_green_detail2.png](./img/sgt_green_detail2.png)<br />
+
+
+**4. Definition and usage of macros**<br />
+**Macros** are pieces of code in Jinja that can be reused, similar to functions in other languages.<br />
+dbt already includes a series of macros like ```config()```, ```source()``` and ```ref()```, but custom macros can also be defined.<br />
+Macros allow us to add features to SQL that aren't otherwise available, such as:
+* Use control structures such as if statements or for loops.
+* Use environment variables in our dbt project for production.
+* Operate on the results of one query to generate another query.
+* Abstract snippets of SQL into reusable macros.
+
+Macros are defined in ```separate .sql``` files which are typically stored in a ```macros``` directory.<br />
+There are 3 kinds of Jinja delimiters:
+* ```{% ... %}``` for ***statements*** (control blocks, macro definitions)
+* ```{{ ... }}``` for ***expressions*** (literals, math, comparisons, logic, macro calls...)
+* ```{# ... #}``` for ***comments***.
+Here's a macro definition example:
+```
+{# This macro returns the description of the payment_type #}
+
+{% macro get_payment_type_description(payment_type) %}
+
+    case {{ payment_type }}
+        when 1 then 'Credit card'
+        when 2 then 'Cash'
+        when 3 then 'No charge'
+        when 4 then 'Dispute'
+        when 5 then 'Unknown'
+        when 6 then 'Voided trip'
+    end
+
+{% endmacro %}
+```
+* The ```macro``` keyword states that the line is a macro definition. It includes the name of the macro as well as the parameters.
+* The code of the macro itself goes between 2 statement delimiters. The second statement delimiter contains an ```endmacro``` keyword.
+* In the code, we can access the macro parameters using expression delimiters.
+* The macro returns the ***code*** we've defined rather than a specific value.
+
+Here's how we use the macro:
+```
+select
+    {{ get_payment_type_description('payment_type') }} as payment_type_description
+from {{ source('staging','green_tripdata') }}
+where vendorid is not null
+```
+We pass a ```payment-type``` variable which may be an integer from 1 to 6. And this is what it would compile to:
+```
+select
+    case payment_type
+        when 1 then 'Credit card'
+        when 2 then 'Cash'
+        when 3 then 'No charge'
+        when 4 then 'Dispute'
+        when 5 then 'Unknown'
+        when 6 then 'Voided trip'
+    end as payment_type_description
+from {{ source('staging','green_tripdata') }}
+where vendorid is not null
+```
+The macro is replaced by the code contained within the macro definition as well as any variables that we may have passed to the macro parameters.
+
+Now if we run ```dbt run --select sgt_green_tripdata```we will update our view with additional field payment_type_description to<br />
+![sgt_green_detail3.png](./img/sgt_green_detail3.png)<br />
+
+Note that there is also a target folder included in our .gitignore by default which contains all of the compiled codes from the models that it's generated when you finish ```dbt run```successfully. And the codes are under the same structure, below the structure is ```target/compiled/ny_taxi_rides_hy/models/staging/sgt_green_tripdata.sq``` with the ```payment_type_description``` we just add.<br />
+![target_sql.png](./img/target_sql.png)<br />
+
+
+**5. Importing and Using dbt Packages**<br />
+Macros can be exported to **packages**, similarly to how classes and functions can be exported to libraries in other languages. Packages contain standalone dbt projects with models and macros that tackle a specific problem area.
+
+When you add a package to your project, the package's models and macros become part of your own project. A list of useful packages can be found in the [dbt package hub](https://hub.getdbt.com/).
+
+To use a package, you must first create a ```packages.yml``` file in the root of your work directory. Here's an example:
+```
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 0.8.0
+```
+After declaring your packages, you need to install them by running the ```dbt deps``` command either locally or on dbt Cloud to download all the dependencies that are needed. And you will see the dbt_utils folers with all the macros it provides in dbt_packages folder.<br />
+![dbt_packages.png](./img/dbt_packages.png)
+
+You may access macros inside a package in a similar way to how Python access class methods:
+```
+select
+    {{ dbt_utils.surrogate_key(['vendorid', 'lpep_pickup_datetime']) }} as tripid,
+    cast(vendorid as integer) as vendorid,
+    -- ...
+```
+* The ```surrogate_key()``` macro generates a hashed surrogate key with the specified fields in the arguments.
+
+Now if we run ```dbt run --select sgt_green_tripdata```, we will get a view with field ```tripid```:<br />
+![sgt_green_detail4.png](./img/sgt_green_detail4.png)<br />
+And the compiled code will be like:<br />
+![target_sql2.png](./img/target_sql2.png)<br />
+
+
+**6. Definition of Variables and Setting a Variable from the cli**<br />
+Like most other programming languages, **variables** can be defined and used across our project.<br />
+
+Variables can be defined in 2 different ways:
+* Under the vars keyword inside dbt_project.yml.
+```
+vars:
+    payment_type_values: [1, 2, 3, 4, 5, 6]
+```
+* As arguments when building or running your project.
+```
+dbt build --m <your-model.sql> --var 'is_test_run: false'
+```
+
+Variables can be used with the ```var()``` macro. For example:
+```
+{% if var('is_test_run', default=true) %}
+
+    limit 100
+
+{% endif %}
+```
+* In this example, the default value for ```is_test_run``` is ```true```; in the absence of a variable definition either on the ```dbt_project.yml``` file or when running the project, then ```is_test_run``` would be ```true```.
+* Since we passed the value ```false``` when runnning ```dbt run```, then the ```if``` statement would evaluate to ```false``` and the code within would not run.
+
+Now if we add it to our ```sgt_green_tripdata.sql``` and run ```dbt run -m sgt_green_tripdata```, the compiled code is <br />
+![target_sql4.png](./img/target_sql4.png)<br />
+But if we run ```dbt run -m sgt_green_tripdata --var 'is_test_run: false'```, the compiled code is <br />
+![target_sql3.png](./img/target_sql3.png)<br />
+
+
+**7. Add second model (stg_yellow_tripdata)**<br />
+We can now create ```stg_yellow_tripdata.sql``` and copy the codes for green here, however, we have to make some changes to adapt the input (e.g. lpep_pickup_datetime to tpep_pickup_datetime). The complete sql code is:
+```
+{{ config(materialized='view') }}
+
+select
+    -- identifiers
+    {{ dbt_utils.surrogate_key(['vendorid', 'tpep_pickup_datetime']) }} as tripid,
+    cast(vendorid as integer) as vendorid,
+    cast(ratecodeid as integer) as ratecodeid,
+    cast(pulocationid as integer) as pickup_locationid,
+    cast(dolocationid as integer) as dropoff_locationid,
+    
+    -- timestamps
+    cast(tpep_pickup_datetime as timestamp) as pickup_datetime,
+    cast(tpep_dropoff_datetime as timestamp) as dropoff_datetime,
+    
+    -- trip info
+    store_and_fwd_flag,
+    cast(passenger_count as integer) as passenger_count,
+    cast(trip_distance as numeric) as trip_distance,
+    -- yellow cabs are always street-hail
+    1 as trip_type,
+    
+    -- payment info
+    cast(fare_amount as numeric) as fare_amount,
+    cast(extra as numeric) as extra,
+    cast(mta_tax as numeric) as mta_tax,
+    cast(tip_amount as numeric) as tip_amount,
+    cast(tolls_amount as numeric) as tolls_amount,
+    cast(0 as numeric) as ehail_fee,
+    cast(improvement_surcharge as numeric) as improvement_surcharge,
+    cast(total_amount as numeric) as total_amount,
+    cast(payment_type as integer) as payment_type,
+    {{ get_payment_type_description('payment_type') }} as payment_type_description,
+    cast(congestion_surcharge as numeric) as congestion_surcharge
+    
+from {{ source('staging', 'yellow_tripdata') }}
+
+where vendorid is not null
+-- dbt build --m <your-model.sql> --var 'is_test_run: false'
+{% if var('is_test_run', default=true) %}
+  
+  limit 100
+
+{% endif %}
+```
+Note that yellow_tripdata only have 18 field with 2 field of default value, so we add them to better combined with green_tripdata.<br />
+Run ```dbt run -m stg_yellow_tripdata``` and to get ```stg_yellow_tripdata``` in BigQuery 
+
+
+**8. Creating and using dbt seed (taxi_zones_lookup and dim_zone)**<br />
+```dbt seed``` are meant to be used with CSV files that contain data that will not be changed often. In our example, we copy the content of [taxi_zone_lookup.csv](https://s3.amazonaws.com/nyc-tlc/misc/taxi+_zone_lookup.csv) and paste it in a file in the ```seeds/taxi_zone_lookup.csv```. <br />
+Then, we run ```dbt seed``` on the command line to create this table in our database. But instead of asking dbt to define the data type of each field, we prefer to do it ourselves by adding an entry for the seeds in ```dbt_project.yml```
+```
+seeds: 
+    taxi_rides_ny:
+        taxi_zone_lookup:
+            +column_types:
+                locationid: numeric
+```
+Note that if you want to change some records and then update the .csv file. Instead of using ```dbt seed```(which appends to the old table), you can use ```dbt seed --full-refresh``` to drop the table and create a new one.
+
+Then we want to create ```modes/core/dim_zones.sql``` to modify the ```service_zone field``` in ```taxi_zone_lookup``` by chaning "Boro Zone" to "Green Zone" as we have "Yellow Zone".
+```
+{{ config(materialized='table') }}
+
+select 
+    locationid, 
+    borough, 
+    zone, 
+    replace(service_zone,'Boro','Green') as service_zone
+from {{ ref('taxi_zone_lookup') }}
+```
+
+
+**9. Unioning our models in fact_trips and understanding dependencies**<br />
+Instead of run the ```dim_zones.sql```, we now create a new file ```fact_trips.sql``` to combine all data tables.
+```
+{{ config(materialized='table') }}
+
+with green_data as (
+    select *, 
+        'Green' as service_type 
+    from {{ ref('sgt_green_tripdata') }}
+), 
+
+yellow_data as (
+    select *, 
+        'Yellow' as service_type
+    from {{ ref('stg_yellow_tripdata') }}
+), 
+
+trips_unioned as (
+    select * from green_data
+    union all
+    select * from yellow_data
+), 
+
+dim_zones as (
+    select * from {{ ref('dim_zones') }}
+    where borough != 'Unknown'
+)
+select 
+    trips_unioned.tripid, 
+    trips_unioned.vendorid, 
+    trips_unioned.service_type,
+    trips_unioned.ratecodeid, 
+    trips_unioned.pickup_locationid, 
+    pickup_zone.borough as pickup_borough, 
+    pickup_zone.zone as pickup_zone, 
+    trips_unioned.dropoff_locationid,
+    dropoff_zone.borough as dropoff_borough, 
+    dropoff_zone.zone as dropoff_zone,  
+    trips_unioned.pickup_datetime, 
+    trips_unioned.dropoff_datetime, 
+    trips_unioned.store_and_fwd_flag, 
+    trips_unioned.passenger_count, 
+    trips_unioned.trip_distance, 
+    trips_unioned.trip_type, 
+    trips_unioned.fare_amount, 
+    trips_unioned.extra, 
+    trips_unioned.mta_tax, 
+    trips_unioned.tip_amount, 
+    trips_unioned.tolls_amount, 
+    trips_unioned.ehail_fee, 
+    trips_unioned.improvement_surcharge, 
+    trips_unioned.total_amount, 
+    trips_unioned.payment_type, 
+    trips_unioned.payment_type_description, 
+    trips_unioned.congestion_surcharge
+from trips_unioned
+inner join dim_zones as pickup_zone
+on trips_unioned.pickup_locationid = pickup_zone.locationid
+inner join dim_zones as dropoff_zone
+on trips_unioned.dropoff_locationid = dropoff_zone.locationid
+```
+* we add a field ```service_type``` to later identify which servive type it comes from. We union both the green and yellow data, and also take the dim_zones. Then we union all 3 togehter using innner join.
+* The lineage looks like this:
+![lineage.png](./img/lineage.png)
+* we have 3 sources, 2 in green are actual sources and 1 in yellow is the dbt seed. Each of the blue ones has a model, and then the purple one is the fact model.
+* running ```dbt run``` will run all models but NOT the seeds. The ```dbt build``` can be used instead to run all seeds and models as well as tests, which we will cover later. Additionally, running ```dbt run --select my_model``` will only run the model itself, but running ```dbt run --select +my_model``` will run the model as well as all of its dependencies.
