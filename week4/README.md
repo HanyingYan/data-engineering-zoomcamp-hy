@@ -5,6 +5,7 @@
 [4.2.1 - BigQuery and dbt Cloud](#421---bigquery-and-dbt-cloud)<br />
 [4.3.1 - Build the First dbt Models](#431---build-the-first-dbt-models)
 
+
 ## [4.1.1 - Analytics Engineering Basics](https://www.youtube.com/watch?v=uF76d5EmdtU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
 **1. What is Analytics Engineering?**<br />
 As the data domain has developed over time, new tools have been introduced that have changed the dynamics of working with data:<br />
@@ -605,3 +606,10 @@ on trips_unioned.dropoff_locationid = dropoff_zone.locationid
 ![lineage.png](./img/lineage.png)
 * we have 3 sources, 2 in green are actual sources and 1 in yellow is the dbt seed. Each of the blue ones has a model, and then the purple one is the fact model.
 * running ```dbt run``` will run all models but NOT the seeds. The ```dbt build``` can be used instead to run all seeds and models as well as tests, which we will cover later. Additionally, running ```dbt run --select my_model``` will only run the model itself, but running ```dbt run --select +my_model``` will run the model as well as all of its dependencies.
+
+Note: if you encounter the error msg below. Add storage admin to your serviceaccont.<br />
+```
+Access Denied: BigQuery BigQuery: Permission denied while globbing file pattern. dbt-service-account@dtc-de-373006.iam.gserviceaccount.com does not have storage.objects.list access to the Google Cloud Storage bucket. Permission 'storage.objects.list' denied on resource (or it may not exist). Please make sure gs://dtc_data_lake_dtc-de-373006/data/green/green_tripdata_20*.parquet is accessible via appropriate IAM roles, e.g. Storage Object Viewer or Storage Object Creator.
+```
+Then if we run ```dbt run -m +fact_trips```, we will get the fact_trips dataset as well as all the dependencies.<br />
+![dbt_run_+model.png](./img/dbt_run_+model.png)
