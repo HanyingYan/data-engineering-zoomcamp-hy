@@ -3,8 +3,8 @@
 [4.1.1 - Analytics Engineering Basics](#411---analytics-engineering-basics)<br />
 [4.1.2 - What is dbt](#412---what-is-dbt)<br />
 [4.2.1 - BigQuery and dbt Cloud](#421---bigquery-and-dbt-cloud)<br />
-[4.3.1 - Build the First dbt Models](#431---build-the-first-dbt-models)
-
+[4.3.1 - Build the First dbt Models](#431---build-the-first-dbt-models)<br />
+[4.3.2 - Testing and Documenting the Project](#432---testing-and-documenting-the-project)<br />
 
 ## [4.1.1 - Analytics Engineering Basics](https://www.youtube.com/watch?v=uF76d5EmdtU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
 **1. What is Analytics Engineering?**<br />
@@ -437,7 +437,7 @@ And the compiled code will be like:<br />
 Like most other programming languages, **variables** can be defined and used across our project.<br />
 
 Variables can be defined in 2 different ways:
-* Under the vars keyword inside dbt_project.yml.
+* Under the vars keyword inside ```dbt_project.yml```.
 ```
 vars:
     payment_type_values: [1, 2, 3, 4, 5, 6]
@@ -613,3 +613,134 @@ Access Denied: BigQuery BigQuery: Permission denied while globbing file pattern.
 ```
 Then if we run ```dbt run -m +fact_trips```, we will get the fact_trips dataset as well as all the dependencies.<br />
 ![dbt_run_+model.png](./img/dbt_run_+model.png)
+
+
+## [4.3.2 - Testing and Documenting the Project](https://www.youtube.com/watch?v=UishFmq1hLM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=37)<br />
+Testing and documenting are not required steps to successfully run models, but they are expected in any professional setting.
+
+**1. Testing**<br />
+Tests in dbt are ***assumptions*** that we make about our data.
+
+In dbt, tests are essentially a ```SELECT``` query that will return the amount of records that fail because they do not follow the assumption defined by the test.
+
+Tests are defined on a column in the model YAML files (like the ```schema.yml``` file we defined before). dbt provides a few predefined tests to check column values but custom tests can also be created as queries. Here's an example test:
+```
+models:
+  - name: stg_yellow_tripdata
+    description: >
+        Trips made by New York City's iconic yellow taxis. 
+    columns:
+        - name: tripid
+        description: Primary key for this table, generated with a concatenation of vendorid+pickup_datetime
+        tests:
+            - unique:
+                severity: warn
+            - not_null:
+                severrity: warn
+```
+* The tests are defined for a column in a specific table for a specific model.
+* There are 2 tests in this YAML file: ```unique``` and ```not_null```. Both are predefined by dbt.
+  * ```unique``` checks whether all the values in the tripid column are unique.
+  * ```not_null``` checks whether all the values in the tripid column are not null.
+  *  the severity can be either ```warn``` or ```error```. In the former case, dbt will warn us about any failures and keep running. In the latter, dbt will raise an error and stop the execution. Both tests here will return a warning if they detect an error.
+* The other two bacis tests are ```accepted_values``` and ```relationships```(a foreign key to another table).
+
+Here's what the ```not_null``` will compile to in SQL query form:
+```
+select *
+from "my_project"."dbt_dev"."stg_yellow_tripdata"
+```
+We can may run tests with the ```dbt test``` command, or we can select a particular model through ```dbt test --select <model_name>```
+
+**2. Documentation**
+dbt also provides a way to generate documentation for your dbt project and render it as a website.
+
+You may have noticed in the previous code block that a ```description```: field can be added to the YAML field. dbt will make use of these fields to gather info.
+
+The dbt generated docs will include the following:
+
+* Information about the project:
+  * Model code (both from the .sql files and compiled code)
+  * Model dependencies
+  * Sources
+  * Auto generated DAGs from the ```ref()``` and ```source()``` macros
+  * Descriptions from the .yml files and tests
+* Information about the Data Warehouse (```information_schema```):
+  * Column names and data types
+  * Table stats like size and rows
+
+dbt docs can be generated on the cloud or locally with ```dbt docs generate```, and can be hosted in dbt Cloud as well or on any other webserver with ```dbt docs serve```.
+
+**3. Our project**<br />
+We create a new ```core/dm_monthly_zone_revenue.sql```<br />
+And in ```staging/schema.yml```, besides the mandatory ```source``` part, we will also add another section for our models (which is not mandantory, but is encouraged to do). There are 2 models in total, one for ```sgt_green_tripdata``` and one for ```stg_yellow_tripdata```.<br />
+Below are the key parts that we want to focus on.
+```
+models:
+    - name: sgt_green_tripdata
+      description: >
+        Trip made by green taxis, also known as boro taxis and street-hail liveries.
+        Green taxis may respond to street hails,but only in the areas indicated in green on the
+        map (i.e. above W 110 St/E 96th St in Manhattan and in the boroughs).
+        The records were collected and provided to the NYC Taxi and Limousine Commission (TLC) by
+        technology service providers. 
+      columns:
+          - name: tripid
+            description: Primary key for this table, generated with a concatenation of vendorid+pickup_datetime
+            tests:
+                - unique:
+                    severity: warn
+                - not_null:
+                    severity: warn
+           ...
+           - name: Pickup_locationid
+            description: locationid where the meter was engaged.
+            tests:
+              - relationships:
+                  to: ref('taxi_zone_lookup')
+                  field: locationid
+                  severity: warn
+           ...
+           - name: Payment_type 
+            description: >
+              A numeric code signifying how the passenger paid for the trip.
+            tests: 
+              - accepted_values:
+                  values: "{{ var('payment_type_values') }}"
+                  severity: warn
+                  quote: false
+           ...
+
+    - name: stg_yellow_tripdata
+    ...
+```
+* here we see the 4 basic tests: ```unique```, ```not_null```, ```relationships``` and ```accepted_values```
+* we also use a variable here defined in the ```dbt_project.yml``` because the ```Payment_type``` are the same for both yellow and green tripdata, we can easily change/add another accepted values by only modifing this variable instead of touching all the related models.
+```
+vars:
+  payment_type_values: [1, 2, 3, 4, 5, 6]
+```
+* we also use ```quote: false``` because by default it will take the variables as chars, but ```Payment_type``` is an integer.  
+
+Now run ```dbt test``` to test everything in the project (don't forget to delete the ```core/example``` here since we don't use them), we will get<br />
+![dbt_test1.png](./img/dbt_test1.png)<br />
+Notice here the last two tests we have warnings for ```unqiue```. This is because we made an assumption on the tripid that we created as a primary key and we defined in the implementation that this is the primary key, but actually it is not unique. That's also the reason why we need tests to help us model correctly.<br />
+
+So we need to include the following chunk in the ```stg_yellow_tripdata.sql```
+```
+with tripdata as 
+(
+  select *,
+    row_number() over(partition by vendorid, lpep_pickup_datetime) as rn
+  from {{ source('staging','yellow_tripdata') }}
+  where vendorid is not null 
+)
+select
+    ...
+from tripdata
+where rn = 1
+```
+And it should be the same case for green data.
+
+Now run ```dbt build``` to run everything including the models<br />
+
