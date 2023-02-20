@@ -5,6 +5,7 @@
 [4.2.1 - BigQuery and dbt Cloud](#421---bigquery-and-dbt-cloud)<br />
 [4.3.1 - Build the First dbt Models](#431---build-the-first-dbt-models)<br />
 [4.3.2 - Testing and Documenting the Project](#432---testing-and-documenting-the-project)<br />
+[4.4.1 - Deployment Using dbt Cloud](#441---deployment-using-dbt-cloud)<br />
 
 ## [4.1.1 - Analytics Engineering Basics](https://www.youtube.com/watch?v=uF76d5EmdtU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
 **1. What is Analytics Engineering?**<br />
@@ -652,7 +653,7 @@ from "my_project"."dbt_dev"."stg_yellow_tripdata"
 ```
 We can may run tests with the ```dbt test``` command, or we can select a particular model through ```dbt test --select <model_name>```
 
-**2. Documentation**
+**2. Documentation**<br/>
 dbt also provides a way to generate documentation for your dbt project and render it as a website.
 
 You may have noticed in the previous code block that a ```description```: field can be added to the YAML field. dbt will make use of these fields to gather info.
@@ -753,3 +754,73 @@ Then build the external table again (we have 109047518 for yellow and 7778101 fo
 We also add the ```models/core/schema.yml```, ```macros/macros_properties.yml``` and ```seeds/seed_properties.yml``` to complete this project<br />
 If we run ```dbt build``` now, we will see something as below.<br />
 ![dbt_build.png](./img/dbt_build.png)
+
+
+## [4.4.1 - Deployment Using dbt Cloud](https://www.youtube.com/watch?v=rjf6yZNGX8I&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=37)
+**1. Deployment Bascis**<br>
+The goal of dbt is to introduce good software engineering practices by defining a **deployment workflow**.<br>
+![dbt_deployment_workflow.png](./img/dbt_deployment_workflow.png)
+
+So far we've seen the Developt and Test And Document stages of the workflow. We will now cover deployment.
+
+**Deployment** is the process of running the models we created in our **development environment** in a **production environment**. Separating the development and production environments allows us to continue building and testing models without affecting the models in production.
+
+Normally, a production environment will have a different schema in our Data Warehouse and ideally a different user.
+
+The deployment workflow defines the steps used to create a model from scratch and bring it to production. Here's a deployment workflow example:
+1. Develop in a user branch.
+2. Open a PR to merge into the main branch.
+3. Merge the user branch to the main branch.
+4. Run the new models in the production environment using the main branch.
+5. Schedule the models.
+
+dbt projects are usually deployed in the form of jobs:
+* A **job** is a collection of commands such as ```build``` or ```test```. A job may contain one or more commands.
+* Jobs can be triggered manually or on schedule.
+  * dbt Cloud has a scheduler which can run jobs for us, but other tools such as Prefect or cron can be used as well.
+* Each job will keep a log of the runs over time, and each run will keep the logs for each command.
+* A job may also be used to generate documentation, which may be viewed under the run information.
+* If the ```dbt source freshness``` command was run, the results can also be viewed at the end of a job.
+
+**2. Continuous Integration**<br/>
+Another good software engineering practice that dbt enables is **Continuous Integration (CI)**: the practice of regularly merging development branches into a central repository, after which automated builds and tests are run. The goal of CI is to reduce adding bugs to the production code and maintain a more stable project.
+
+CI is built on jobs: a CI job will do things such as build, test, etc. We can define CI jobs which can then be triggered under certain circunstances to enable CI.
+
+dbt makes use of GitHub/GitLab's Pull Requests to enable CI via [webhooks](https://www.wikiwand.com/en/Webhook). When a PR is ready to be merged, a webhook is received in dbt Cloud that will enqueue a new run of a CI job. This run will usually be against a temporary schema that has been created explicitly for the PR. If the job finishes successfully, the PR can be merged into the main branch, but if it fails the merge will not happen.
+
+CI jobs can also be scheduled with the dbt Cloud scheduler, Prefect, cron and a number of additional tools.
+
+**3. Deployent using dbt Cloud**<br/>
+**Step 1**: create a production environment on Deploy -> Environments.<br>
+![dbt_deployment1.png](./img/dbt_deployment1.png)
+
+**Step 2**: create a job on Deploy -> Jobs.<br>
+![dbt_job1.png](./img/dbt_job1.png)<br>
+![dbt_job2.png](./img/dbt_job2.png)<br>
+![dbt_job3.png](./img/dbt_job3.png)<br>
+Note: if you run into Unable to configure Continuous Integration (CI) with Github problem. Link your github account, disconnect your project's github connection and reconnect your repository again.
+
+**Step 3**: commit and sync your project and make a pull request to merge branch from dev to main.<br>
+* If you get this 'This dbt Cloud run was canceled because a valid dbt project was not found. Please check that the repository contains a proper dbt_project.yml config file. If your dbt project is located in a subdirectory of the connected repository, be sure to specify its location on the Project settings page in dbt Cloud.' issue, you need to commit and sync your project first. <br>
+![dbt_pull_request1.png](./img/dbt_pull_request1.png)<br>
+* If you get this '404 Not found: Dataset was not found in location europe-west6' error, go to Account settings >> Project Analytics >> Click on your connection >> go all the way down to Location and type in the GCP location just as displayed in GCP (e.g. europe-west6). You might need to reupload your GCP key.
+* If you get this 'dbt seed' error in dbt checks when you try to merge again after reset the location, delete the dataset generated before (mine is dbt_cloud_pr_219608_1) and you will pass all checks<br>
+![dbt_pull_request2.png](./img/dbt_pull_request2.png)
+* Now merge pull request and you are ready to go.<br>
+![dbt_pull_request3.png](./img/dbt_pull_request3.png)
+
+**Step 4**: Run the job again and you will get an output as below<br>
+![dbt_deployment2.png](./img/dbt_deployment2.png)<br>
+Notice the difference between this and the one above is BigQUery connection used (here we use production dataset)<br>
+
+**Step 5**: dbt documentation<br />
+We will also be able to view the documentations generated. Note here the compiled code indicates we generated files in ```production```. And the RHS you can see the lineage graph.<br>
+![dbt_doc1.png](./img/dbt_doc1.png)<br>
+We can also expand the lineage graph and use the same syntax to run models<br>
+![dbt_doc2.png](./img/dbt_doc2.png)<br>
+We can also add this job to artifact<br />
+![dbt_doc3.png](./img/dbt_doc3.png)<br>
+After refreshing the page, we will be able to see the documentation tab.<br />
+![dbt_doc4.png](./img/dbt_doc4.png)<br>
+
