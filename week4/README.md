@@ -741,6 +741,15 @@ from tripdata
 where rn = 1
 ```
 And it should be the same case for green data.
-
 Now run ```dbt build``` to run everything including the models<br />
 
+Note if you get the ``` BadRequest('Partitioning by expressions of type FLOAT64 is not allowed')``` error, cast the vendorid when partition or clean it in the flow script before loading to GCS. <br />
+The first method does not work for me, so I tried the second one, updating the scripts [```parameterized_etl_web_to_gcs_green.py```](./parameterized_etl_web_to_gcs_green.py)and [```parameterized_etl_web_to_gcs_yellow.py```](./parameterized_etl_web_to_gcs_yellow.py), and using the new deployments below.
+```
+prefect deployment build  parameterized_etl_web_to_gcs_green.py:etl_parent_flow_green -n "week4_green" -a
+prefect deployment build  parameterized_etl_web_to_gcs_yellow.py:etl_parent_flow_yellow -n "week4_yellow" -a
+```
+Then build the external table again (we have 109047518 for yellow and 7778101 for green) <br />
+We also add the ```models/core/schema.yml```, ```macros/macros_properties.yml``` and ```seeds/seed_properties.yml``` to complete this project<br />
+If we run ```dbt build``` now, we will see something as below.<br />
+![dbt_build.png](./img/dbt_build.png)
