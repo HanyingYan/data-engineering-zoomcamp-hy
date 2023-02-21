@@ -6,6 +6,7 @@
 [4.3.1 - Build the First dbt Models](#431---build-the-first-dbt-models)<br />
 [4.3.2 - Testing and Documenting the Project](#432---testing-and-documenting-the-project)<br />
 [4.4.1 - Deployment Using dbt Cloud](#441---deployment-using-dbt-cloud)<br />
+[4.5.1 - Visualising the data with Google Data Studio]($451---visualising-the-data-with-google-data-studio)<br />
 
 ## [4.1.1 - Analytics Engineering Basics](https://www.youtube.com/watch?v=uF76d5EmdtU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
 **1. What is Analytics Engineering?**<br />
@@ -824,3 +825,10 @@ We can also add this job to artifact<br />
 After refreshing the page, we will be able to see the documentation tab.<br />
 ![dbt_doc4.png](./img/dbt_doc4.png)<br>
 
+Note: We have 109047518 for yellow_tripdata and 7778101 for green_tripdata. And the count of records in the model fact_trips after running all models with the test run variable disabled and filtering for 2019 and 2020 data only (pickup datetime) should be 61648442 (61649738 without filtering)
+```
+dbt build --var 'is_test_run: false'
+SELECT count(*) FROM `dtc-de-373006.dbt_hanyingyan.fact_trips` where date(pickup_datetime)>= Date(2019,01,01) and date(pickup_datetime) <= Date(2020, 12, 31)
+```
+If you couldn't get this results, try adding the ```order by fare_amount, pulocationid, t(l)pep_dropoff_datetime``` in the staging step.
+Don't forget to commit and create a pull request, the job we created before should also be modified as ```dbt run --var 'is_test_run: false'```
