@@ -832,3 +832,66 @@ SELECT count(*) FROM `dtc-de-373006.dbt_hanyingyan.fact_trips` where date(pickup
 ```
 If you couldn't get this results, try adding the ```order by fare_amount, pulocationid, t(l)pep_dropoff_datetime``` in the staging step.
 Don't forget to commit and create a pull request, the job we created before should also be modified as ```dbt run --var 'is_test_run: false'```
+
+
+## [4.5.1 - Visualising the data with Google Data Studio](youtube.com/watch?v=39nLTs74A3E&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=39)
+After creating our models, transforming the data and deploying the models, we will now visualize the data.
+
+[Google Data Studio](https://datastudio.google.com/) (GDS) is an online tool for converting data into **reports** and **dashboards**.
+
+**Step 1**: Create a Data Source<br>
+* GDS supports multiple sources including BigQuery. After authorizing GDS to access BigQuery, we will be able to select our project and datasets. 
+* We will connect to our production.fact_trips schema.<br>
+![data_studio.png](./img/data_studio.png)<br>
+* After creating the data source, a new window will open with the dimensions (table columns), the type of each dimension and the default aggregation for each dimension. 
+  * You may change the default aggregation as you see fit for each dimension.
+  * Here we change dropoff_locationid, pickup_locationid, ratecodeid, payment_type, trip_type and vendorid from sum to none
+  * metrics part, we have record count
+  * we can also creat a field here if you know what you want to use (or later), we can also add description.
+
+**Step 2**: Create a Report<br>
+A **Report** is essentially an empty canvas which can be filled with can be filled with different widgets. The widgets that display data are called **Charts**; widgets that modify the behavior of other charts are called **Controls**. There are additional widgets for text, images and other elements to help improve the looks and readability of the report.
+
+We will now create a new report by clicking on the ```Create report``` button at the top of the Data Source window. A new window will open which will allow us to design our own custom report. An example table is already provided but you may delete it because we will be creating our own from scratch.
+
+1. Add the first chart to the report. 
+  * We want to show the amount of trips per day, so we'll choose a ***Time Series Chart***. GDS will pick up the most likely dimensions for the chart, which for ```fact_trips``` happens to be ```pickup_datetime```, but we need to add an additional dimension for breaking down the data, so we will drag an drop ```service_type``` into the widget sidebar, which should update with 2 lines, one for yellow taxi and another one for green taxi data. You may also move and resize the chart.<br>
+![chart1-1.png](./img/chart1-1.png)<br>
+![chart1-2.png](./img/chart1-2.png)<br>
+  * You may notice that the vast majority of trips are concentrated in a small interval; this is due to dirty data which has bogus values for ```pickup_datetime```. We can filter out these bogus values by adding a *Date Range Control*(Note: Controls affect all the charts in the report), which we can drag and drop anywhere in the report, and then set the start date to January 1st 2019 and the end date to December 31st 2020.<br>
+![chart1-3.png](./img/chart1-3.png)<br>
+Clicking on a chart will open the chart's sidebar with 2 tabs: the *Data tab* contains all the specifics of the data to be displayed and the *Style tab* allows us to change the appearance of the chart.
+  * You may also add a text widget as a title for the chart. Here we use "Amount of trips per day" <br>
+![chart1-4.png](./img/chart1-4.png)<br>
+
+2. Add a Scorecard and a Pie chart<br>
+We now add a ***Scorecard chart*** With Compact Numbers with the total record count in ```fact_trips```, a ***Pie chart*** displaying the service_type dimension using the record count metric <br>
+![chart2.png](./img/chart2.png)<br>
+
+3. Add a ***Table with Heatmap*** using ```pickup_zone``` as its dimension.<br>
+![chart3.png](./img/chart3.png)<br>
+
+4. Add a Bar chart
+* We will also add a ***Stacked Column Bar chart*** showing trips per month. Since we do not have that particular dimension, what we can do instead is to create a new field that will allow us to filter by month: 
+  * In the Available Fields sidebar, click on Add a field at the bottom.
+  * Name the new field pickup_month.
+  * In the Formula field, type MONTH(pickup_datetime).
+ * Click on Save and then on Done.
+
+* Back in the main page, drag the new pickup_month field from the Available fields sidebar to the Dimension field in the Data sidebar. Get rid of all breakdown dimensions.<br>
+![chart4-1.png](./img/chart4-1.png)<br>
+
+* Our bar chart will now display trips per month but we still want to discriminate by year:
+  * Add a new field and name it pickup_year.
+  * Type in the formula YEAR(pickup_datetime).
+  * Click on Save and Done.
+  * Add the pickup_year field as a breakdown dimension for the bar chart.
+  * Change the Sort dimension to pickup_month and make it ascending.
+  * Add title to complete<br>
+![chart4-2.png](./img/chart4-2.png)<br>
+
+5. Add a Drop-Down List Control
+Finally, we will add a *** Drop-Down List Control***  and drag the ```service_type``` dimension to Control field. The drop-down control will now allow us to choose yellow, green or both taxi types. We will also rename the report to Trips analysis years 2019-2020.<br>
+![chart5.png](./img/chart5.png)<br>
+
+Now you may click on the View button at the top to check how the shared report will look to the stakeholders. Sharing the report works similarly to Google Drive document sharing.
