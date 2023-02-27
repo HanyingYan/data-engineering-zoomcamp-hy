@@ -4,6 +4,7 @@
 [1.2.1 - Introduction to Docker](#121---introduction-to-docker)<br />
 [1.2.2 - Ingesting NY Taxi Data to Postgres](#122---ingesting-ny-taxi-data-to-postgres)<br />
 [1.2.3 - Connecting pgAdmin and Postgres](#123---connecting-pgadmin-and-postgres)<br />
+[1.2.4 - Dockerizing the Ingestion Script](#124---dockerizing-the-ingestion-script)<br />
 
 
 ## [1.1.1 - Introduction to Google Cloud Platform](https://www.youtube.com/watch?v=18jIzE41fJ4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=3)
@@ -183,4 +184,81 @@ docker run -it \
   --name pgadmin \
   dpage/pgadmin4
 ```
-Now we can use the pg-database we specified instead of localhost before as the hostname/address for pgAdmin to search for database.
+* We can remove the network later with the command ```docker network rm pg-network```. 
+* We can look at the existing networks with docker network ls .
+* We can use the ```pg-database``` we specified now instead of ```localhost``` before as the hostname/address for pgAdmin to search for database.
+* Just like with the Postgres container, we specify the network and a name for pgadmin. However, the name in this example isn't really necessary because there won't be any containers trying to access this particular container. The image for it is ```dpage/pgadmin4:lateste```
+
+## [1.2.4 - Dockerizing the Ingestion Script](https://www.youtube.com/watch?v=B1WwATwf-vY&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=8)
+### **1. Converting the notebook to a python script**
+We can export our [```upload-data.ipynb ```](./2_docker_sql/upload-data.ipynb) file to py
+```
+jupyter nbconvert --to=script upload-data.ipynb
+```
+Then we update and rename it [```ingest_data.py```](./2_docker_sql/ingest_data.py) with a few modifications:
+* We will use argparse to handle the following command line arguments
+  * Username
+  * Password
+  * Host
+  * Port
+  * Database name
+  * Table name
+  * URL for the CSV file
+* The engine we created for connecting to Postgres will be tweaked so that we pass the parameters and build the URL from them, like this:
+```engine = create_engine(f'postgresql://{user}:{password}@{host}:{port}/{db}')```
+* We will also download the CSV using the provided URL argument.
+
+### **2. Drop table and Running the script**
+In order to test the script we will have to drop the table we previously created. In pgAdmin, in the sidebar navigate to Servers > Docker localhost > Databases > ny_taxi > Schemas > public > Tables > yellow_taxi_data, right click on yellow_taxi_data and select Query tool. Introduce the following command:
+```
+DROP TABLE yellow_taxi_data;
+```
+We are now ready to test the script with the following command:
+```
+URL="https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz"
+
+python ingest_data.py \
+    --user=root \
+    --password=root \
+    --host=localhost \
+    --port=5432 \
+    --db=ny_taxi \
+    --table_name=yellow_taxi_trips \
+    --url=${URL}
+```
+Note that we've changed the table name from ```yellow_taxi_data``` to ```yellow_taxi_trips```.
+
+Back in pgAdmin, refresh the Tables and check that yellow_taxi_trips was created. You can also run a SQL query to check the contents:
+```
+SELECT COUNT(1) FROMyellow_taxi_trips;
+```
+This query should return 1,369,765 rows.
+
+### **3. Dockerizing Ingestion Script**
+Let's modify the [```Dockerfile```](./2_docker_sql/Dockerfile.py) we created before to include our ```ingest_data.py``` script and create a new image:
+```
+docker build -t taxi_ingest:v001 .
+```
+And run it:
+```
+docker run -it \
+  --network=pg-network \ parameters for docker
+  taxi_ingest:v001 \
+    --user=root \               parameters to our jobs
+    --password=root \
+    --host=pg-database \
+    --port=5432 \
+    --db=ny_taxi \
+    --table_name=yellow_taxi_trips \
+    --url="https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz"
+
+docker run -it \
+  -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
+  -e PGADMIN_DEFAULT_PASSWORD="root" \
+  -p 8080:80 \
+  --network=pg-network \
+  --name pgadmin
+```
+* We need to provide the network for Docker to find the Postgres container. It goes before the name of the image.
+* Since Postgres is running on a separate container, the host argument will have to point to the container name of Postgres.
+* We can use ```docker ps``` to check the containers that are running.
