@@ -3,6 +3,7 @@
 [1.1.1 - Introduction to Google Cloud Platform](#111---introduction-to-google-cloud-platform)<br />
 [1.2.1 - Introduction to Docker](#121---introduction-to-docker)<br />
 [1.2.2 - Ingesting NY Taxi Data to Postgres](#122---ingesting-ny-taxi-data-to-postgres)<br />
+[1.2.3 - Connecting pgAdmin and Postgres](#123---connecting-pgadmin-and-postgres)<br />
 
 
 ## [1.1.1 - Introduction to Google Cloud Platform](https://www.youtube.com/watch?v=18jIzE41fJ4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=3)
@@ -145,3 +146,41 @@ gunzip yellow_tripdata_2021-01.csv.gz
 I have created a conda environment named de with python=3.9, and install jupyter notebook to use with <br/>
 ```conda create -n de python=3.9; conda activate de; pip install jupyter```
 
+
+## [1.2.3 - Connecting pgAdmin and Postgres](https://www.youtube.com/watch?v=hCAIVe9N0ow&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=7)
+### **1. pgAdmin and install pgAdmin using Docker**
+**pgcli** is a handy tool but it's cumbersome to use. [**pgAdmin**](https://www.pgadmin.org/download/pgadmin-4-container/) is a *web-based* GUI(Graphical user interface) tool that makes it more convenient to access and manage our databases. 
+```
+docker run -it \
+  -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
+  -e PGADMIN_DEFAULT_PASSWORD="root" \
+  -p 8080:80 \
+dpage/pgadmin4
+```
+### **2. Running pgAdmin and Problems with connecting pgAdmin to Postgres**
+![pgadmin_problem.png](./img/pgadmin_problem.png)<br/>
+We are running the pdAmin inside dpage/pgamin4 container without Postgres, so it was unable to connect when it tries to find Postgres inside it with localhost. We need to use a **network** to link the two containers.
+
+### **3. Docker networks and using pgAdmin for exploring the database**
+```
+docker network create pg-network
+
+docker run -it \
+  -e POSTGRES_USER="root" \
+  -e POSTGRES_PASSWORD="root" \
+  -e POSTGRES_DB="ny_taxi" \
+  -v $(pwd)/ny_taxi_postgres_data:/var/lib/postgresql/data \
+  -p 5432:5432 \
+  --network=pg-network \
+  --name pg-database \
+  postgres:13
+
+docker run -it \
+  -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
+  -e PGADMIN_DEFAULT_PASSWORD="root" \
+  -p 8080:80 \
+  --network=pg-network \
+  --name pgadmin \
+  dpage/pgadmin4
+```
+Now we can use the pg-database we specified instead of localhost before as the hostname/address for pgAdmin to search for database.
