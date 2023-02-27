@@ -6,6 +6,7 @@
 [1.2.3 - Connecting pgAdmin and Postgres](#123---connecting-pgadmin-and-postgres)<br />
 [1.2.4 - Dockerizing the Ingestion Script](#124---dockerizing-the-ingestion-script)<br />
 [1.2.5 - Running Postgres and pgAdmin with Docker-Compose](#125---running-postgres-and-pgadmin-with-docker-compose)<br />
+[1.2.6 - SQL Refresher](#125---sql-refresher)<br />
 
 
 ## [1.1.1 - Introduction to Google Cloud Platform](https://www.youtube.com/watch?v=18jIzE41fJ4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=3)
@@ -305,4 +306,62 @@ docker-compose down
 And if you want to run the containers again in the background rather than in the foreground (thus freeing up your terminal), you can run them in *detached mode*:
 ```
 docker-compose up -d
+```
+
+## [1.2.6 - SQL Refresher](https://www.youtube.com/watch?v=QEcps_iskgg&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=10)
+### **1. Download zone lookup table**
+We download and add the zone lookup table to our database using [```upload-data.ipynb```](./2_docker_sql/upload-data.ipynb).
+```
+!wget https://s3.amazonaws.com/nyc-tlc/misc/taxi+_zone_lookup.csv
+engine = create_engine('postgresql://root:root@localhost:5432/ny_taxi')
+df_zones = pd.read_csv("taxi+_zone_lookup.csv")
+df_zones.to_sql(name='zones', con=engine, if_exists='replace')
+```
+
+### **2. SQL refresher**
+Below are a series of SQL query examples to remember how SQL works. For this example we'll asume that we're working with 2 tables named ```yellow_taxi_trips``` (list of all yelow taxi trips of NYC for January 2021) and ```zones``` (list of zone IDs for pick ups and drop offs).
+
+```
+SELECT tpep_pickup_datetime, tpep_dropoff_datetime, total_amount, "PULocationID", "DOLocationID"
+FROM yellow_taxi_trips t
+WHERE "DOLocationID" NOT IN (SELECT "LocationID" FROM zones)
+LIMIT 100;
+```
+* Left, Right, Out Joins
+```
+DELETE FROM zones WHERE "LocationID" = 142
+
+SELECT tpep_pickup_datetime, tpep_dropoff_datetime, total_amount, CONCAT(zpu."Borough",' / ', zpu."Zone") AS "pick_up_loc", 
+CONCAT(zdo."Borough",' / ',zdo."Zone") AS "drop_off_loc"
+# note here you can also use ```RIGHT JOIN``` or ```OUTER JOIN```, ```JOIN``` indicates INNER JOIN.
+FROM yellow_taxi_trips t LEFT JOIN zones zpu ON t."PULocationID"=zpu."LocationID" 
+LEFT JOIN zones zdo ON t."DOLocationID"=zdo."LocationID"
+LIMIT 100;
+```
+* Group By, Order By
+```
+SELECT CAST(tpep_dropoff_datetime AS DATE) AS "day", COUNT(1)
+FROM yellow_taxi_trips t
+GROUP BY "day"
+ORDER BY "day" ASC
+LIMIT 10
+
+SELECT CAST(tpep_dropoff_datetime AS DATE) AS "day", COUNT(1) AS "count"
+FROM yellow_taxi_trips t
+GROUP BY "day"
+ORDER BY "count" DESC
+```
+* Aggregations, Group By multiple fields
+```
+SELECT CAST(tpep_dropoff_datetime AS DATE) AS "day", COUNT(1) AS "count", MAX(total_amount), MAX(passenger_count)
+FROM yellow_taxi_trips t
+GROUP BY "day"
+ORDER BY "count" DESC
+LIMIT 10
+
+SELECT CAST(tpep_dropoff_datetime AS DATE) AS "day", "DOLocationID", COUNT(1) AS "count", MAX(total_amount), MAX(passenger_count)
+FROM yellow_taxi_trips t
+GROUP BY 1, 2
+ORDER BY 1 ASC, 2 DESC
+LIMIT 10
 ```
