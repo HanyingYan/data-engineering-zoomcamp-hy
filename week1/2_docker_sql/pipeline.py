@@ -1,0 +1,11 @@
+import sys
+
+import pandas as pd
+
+print(sys.argv)
+
+# argument 0 is the name os the file
+# argumment 1 contains the actual first argument we care about
+day = sys.argv[1]
+
+print(f'job finished successfully for day = {day}')
