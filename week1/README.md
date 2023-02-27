@@ -9,7 +9,7 @@
 [1.2.6 - SQL Refresher](#126---sql-refresher)<br />
 [1.3.1 - Introduction to Terraform Concepts & GCP Pre-Requisites](#131---introduction-to-terraform-concepts--gcp-pre-requisites)<br />
 [1.3.2 - Creating GCP Infrastructure with Terraform](#132---creating-gcp-infrastructure-with-terraform)<br />
-
+[1.4.1 - Setting up the Environment on Google Cloud (Cloud VM + SSH access)](#141---setting-up-the-environment-on-google-cloud-cloud-vm--ssh-access)<br />
 
 
 ## [1.1.1 - Introduction to Google Cloud Platform](https://www.youtube.com/watch?v=18jIzE41fJ4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=3)
@@ -18,6 +18,8 @@
 * Includes a range of hosted service for compute, storage and application development that run on google hardware<br />
 * Same hardware on which google runs its service<br />
 ![gcp_services.png](./img/gcp_services.png)
+
+[Back to the top](#week-1-overview)
 
 
 ## [1.2.1 - Introduction to Docker](https://www.youtube.com/watch?v=EYNwNlOrpr0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=4)
@@ -101,6 +103,9 @@ Now if we run the container with an argument, we will get 'job finished successf
 docker run -it test:pandas 2021-01-15
 ```
 
+[Back to the top](#week-1-overview)
+
+
 ## [1.2.2 - Ingesting NY Taxi Data to Postgres](https://www.youtube.com/watch?v=2JM-ziJt0WI&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=5)
 ### **1. Running Postgres in a container**
 We can run a containerized version of Postgres that doesn't require any installation steps. We only need to provide a few environment variables to it as well as a **volume** for storing data.
@@ -152,6 +157,8 @@ gunzip yellow_tripdata_2021-01.csv.gz
 I have created a conda environment named de with python=3.9, and install jupyter notebook to use with <br/>
 ```conda create -n de python=3.9; conda activate de; pip install jupyter```
 
+[Back to the top](#week-1-overview)
+
 
 ## [1.2.3 - Connecting pgAdmin and Postgres](https://www.youtube.com/watch?v=hCAIVe9N0ow&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=7)
 ### **1. pgAdmin and install pgAdmin using Docker**
@@ -193,6 +200,9 @@ docker run -it \
 * We can look at the existing networks with docker network ls .
 * We can use the ```pg-database``` we specified now instead of ```localhost``` before as the hostname/address for pgAdmin to search for database.
 * Just like with the Postgres container, we specify the network and a name for pgadmin. However, the name in this example isn't really necessary because there won't be any containers trying to access this particular container. The image for it is ```dpage/pgadmin4:lateste```
+
+[Back to the top](#week-1-overview)
+
 
 ## [1.2.4 - Dockerizing the Ingestion Script](https://www.youtube.com/watch?v=B1WwATwf-vY&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=8)
 ### **1. Converting the notebook to a python script**
@@ -268,6 +278,8 @@ docker run -it \
 * Since Postgres is running on a separate container, the host argument will have to point to the container name of Postgres.
 * We can use ```docker ps``` to check the containers that are running.
 
+[Back to the top](#week-1-overview)
+
 
 ## [1.2.5 - Running Postgres and pgAdmin with Docker-Compose](https://www.youtube.com/watch?v=hKI6PkPhpa0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=9)
 ### **1. Introduction to Docker-Compose and Running Docker-Compose**
@@ -310,6 +322,9 @@ And if you want to run the containers again in the background rather than in the
 ```
 docker-compose up -d
 ```
+
+[Back to the top](#week-1-overview)
+
 
 ## [1.2.6 - SQL Refresher](https://www.youtube.com/watch?v=QEcps_iskgg&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=10)
 ### **1. Download zone lookup table**
@@ -369,6 +384,9 @@ ORDER BY 1 ASC, 2 DESC
 LIMIT 10
 ```
 
+[Back to the top](#week-1-overview)
+
+
 ## [1.3.1 - Introduction to Terraform Concepts & GCP Pre-Requisites](https://www.youtube.com/watchv=Hajwnmj0xfQ&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=11)
 ### **1. Terraform and Installation**
 **Terraform**
@@ -419,7 +437,6 @@ Steps:
     1. ```export GOOGLE_APPLICATION_CREDENTIALS=/Users/hanying/Documents/data-engineering-zoomcamp-hy/dtc-de-373006-58eecc9ef188.json```
     1. Refresh the token and verify the authentication with the GCP SDK: ```gcloud auth application-default login```
 
-
 ### **3. Creating Infrastructure with Terraform**
 Project infrastructure modules in GCP:
 * Google Cloud Storage (GCS): Data Lake
@@ -435,6 +452,8 @@ Setup for Access
   * https://console.cloud.google.com/apis/library/iamcredentials.googleapis.com
 * Please ensure GOOGLE_APPLICATION_CREDENTIALS env-var is set according to section 2.
   * ```Export GOOGLE_APPLICATION_CREDENTIALS="/Users/hanying/Documents/data-engineering-zoomcamp-hy/dtc-de-373006-58eecc9ef188.json"```
+ 
+[Back to the top](#week-1-overview)
 
 
 ## [1.3.2 - Creating GCP Infrastructure with Terraform](https://www.youtube.com/watch?v=dNkEgO-CExg&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=12)
@@ -523,3 +542,134 @@ Besides the 3 blocks above, there are additional available blocks:
   * I do ```terraform apply -var="project=dtc-de-373006"```
   * Now if go to cloud storage we will see the bucket with concatenated unique name, and if you go to Bigquery, we will see the trips_data_all
 * ```terraform destroy```: to removes your stack from the infrastructure to avoid costs on any running services.
+
+[Back to the top](#week-1-overview)
+
+
+## [1.4.1 - Setting up the Environment on Google Cloud (Cloud VM + SSH access)](https://www.youtube.com/watch?v=ae-CV2KfoN0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=13)
+### **1. GCP VM**
+1. Generate the ssh keys with ```cd ~/.ssh; ssh-keygen -t rsa -f gcp -C hanying -b 2048```
+1. Connect to the GCP VM with SSH
+	  1. Google cloud project -> compute engine -> Metadata -> SSH KEYS -> add one with the content of ```cat gcp.pub```
+	  1. All instances in the project (mine is ```dtc-de-373006```) inherit the ssh keys we just created
+1. Create an VM isntance
+	  1. Google cloud project -> compute engine -> VM instances -> create VM instance -> 
+	  1. name: de-zoomcamp; region: northamerica-northeast1; zone: northamerica-northeast1a; Machine type: e2-standard-4(4vCPU, 16GB memory); 
+	  1. Boot disk, OS: Ubuntu, Version: 20.04LTS - x86/64, amd64 focal image built on 2022-12-13, supports Shielded VM features; Size: 30G - - $111.01/h 
+	  1. we can also generate this with glcoud command line with the ```EQUIVALENT COMMAND LINE```
+1. Get the IP to ssh remote login
+	  1. Create and get the External IP - 34.152.19.4. 
+	  1. Go to home dir and to get to the VM ```hanying@de-zoomcamp```, we will run ```ssh -i ~/.ssh/gcp hanying@34.152.19.4```
+	  1. It tells the ssh command to look at the private key file you need for authentication on the destination server, and you can find in the known_hosts
+	  1. we can use ```htop``` to check the machine we get - 4 cores, 16G.
+	  1. Check gcloud by ```gcloud --version```
+1. Set up ssh config to easy login
+	  1. Open the Command Palette (Cmd+Shift+P) and type 'shell command' to find the Shell Command: Install 'code' command in PATH command.
+	  1. ```cd ~/.ssh; touch config; code config```
+	  1. Input 
+		  ```Host de-zoomcamp
+			    HostName 34.152.19.4
+			    User hanying
+			    IdentityFile /Users/hanying/.ssh/gcp
+		   ```
+	  1. Now we can use ```ssh de-zoomcamp``` to get in.
+
+ ### **2. VM setup**
+1. Download anaconda in VM
+	1. Download anaconda with ```wget https://repo.anaconda.com/archive/Anaconda3-2022.10-Linux-x86_64.sh```
+	1. ```bash Anaconda3-2022.10-Linux-x86_64.sh``` to install conda in VM. Go with default, yes to init will add conda to .bashrc which get executed when logs in
+	1. Logout(control+d) and login again to activate the base conda env, or just source .bashrc
+1. Clone the course repo
+	1. ```git clone https://github.com/DataTalksClub/data-engineering-zoomcamp.git```
+1. Set up visual code
+	1. Extension: ```Remote - SSH```, install it
+	1. you will find a green pattern at the bottom left for ```remote windows```. 
+	1. Connect to Host -> de-zoomcamp. Note: if you have no console windows then View->terminal to get the Explorer.
+1. Install docker 
+	1. ```ssh de-zoomcamp```
+	1. ```sudo apt update; sudo apt install docker.io```
+	1. Note: Advanced package tool, or APT, is a free-software user interface that works with core libraries to handle the installation and removal of software on Debian, and Debian-based Linux distributions.
+	1. [Docker run without sudo](https://github.com/sindresorhus/guides/blob/main/docker-without-sudo.md) 
+	  * To run docker without root privileges everytime with ```sudo groupadd docker; sudo gpasswd -a $USER docker```
+	  * Logout and run docker run hello-world should work
+	  * ```docker run -it ubuntu bash``` will get you in ubuntu, you can exit then.
+1. Install docker compose from release 
+	1. Make a dir to put all the executable files: ```mkdir bin; cd bin/```
+	  * ```wget https://github.com/docker/compose/releases/download/v2.14.2/docker-compose-linux-x86_64 -O docker-compose```
+	  * ```chmod +x docker-compose; ./docker-compose version```
+	2. Edit the ```PATH``` variable to make ```docker-compose``` visible from every dir
+	  * adding ```export PATH="${HOME}/bin:${PATH}"``` to ```.bashrc```
+	  * ```source .bashrc; docker-decompose version```
+1. Run docker-compose to download and setup pgAdmin and Postgres
+	```
+	cd data-engineering-zoomcamp/week_1_basics_n_setup/2_docker_sql/
+	docker-compose up -d
+	docker ps
+	docker network ls
+	docker-compose down
+	```
+1. Install and use pgcli to connect
+	1. ```pip install pgcli```
+	1. ```pgcli -h localhost -p 5432 -u root -d ny_taxi```
+	1. check section 3 for local host forwarding
+1. Download terraform
+	```
+	cd bin/
+	wget https://releases.hashicorp.com/terraform/1.3.6/terraform_1.3.6_linux_amd64.zip
+	sudo apt-get install unzip
+	unzip terraform_1.3.6_linux_amd64.zip
+	rm terraform_1.3.6_linux_amd64.zip
+	```
+1. sftp Google credentials to VM
+	1. option: we can move json to .gc for better storage
+	```
+	mkdir ~/.gc
+	mv ~/Documents/data-engineering-zoomcamp-hy/dtc-de-373006-58eecc9ef188.json ~/.gc/ny-rides.json
+	cd .gc
+	```
+	2. upload the credentials to VM
+	```
+	sftp de-zoomcamp
+	mkdir .gc
+	put ny-rides.json 
+	# or put ~/Documents/data-engineering-zoomcamp-hy/dtc-de-373006-58eecc9ef188.json if you didn't rename it.
+	```
+1. Configure gcloud
+	```
+	export GOOGLE_APPLICATION_CREDENTIALS=~/.gc/ny-rides.json
+	gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
+	```
+	and get "Activated service account credentials for: [dtc-de-user@dtc-de-373006.iam.gserviceaccount.com]"
+	* you can also use ```gcloud auth list``` to see the details
+1. Run terraform commands
+	```
+	terraform init
+	terraform plan
+	terraform apply
+	terraform destroy
+	```
+	* Note: Don’t forget to set env-var GOOGLE_APPLICATION_CREDENTIALS if you logout and login again
+	* If you have already run it in your local host, terraform may complain it because you have no state variable in the VM
+1. Shut down VM
+	* Go to google cloud console -> stop Or you can do  sudo shutdown now
+	* You can start anytime later if you want, please note you need to update the ```.ssh/config``` with new ```external ip``` address when you do so.
+	* When you stop, you will not be charged by running, but still be charged by the storage. If you delete the VM, you will not be charged for anything then.
+
+
+ ### **3. Local terminal**
+1.  Setup port forwarding to local machine
+	1. Visual studio open the ssh:de-zoomcamp, go to data-engineering-zoomcamp dir. 
+	1. View->PORTS->Forward a Port->5432
+	1. Then we can use ```pgcli -h localhost -p 5432 -u root -d ny_taxi``` locally even if ```docker ps``` returns no activate containers locally
+	1. We can also forward port 8080 and if we go to browser, we will see pgAdmin if we go to ```localhost:8080```	
+1. Run Jupyter to run upload-data notebook
+	```
+	ssh de-zoomcamp
+	cd /home/hanying/data-engineering-zoomcamp/week_1_basics_n_setup/2_docker_sql
+	jupyter notebook
+	```
+	* Then if we forward port 8888 to local machine, we use the link jupyter notebook provided similar as ```http://localhost:8888/?token=d3e7b969ecc2fb8186d09536162e1c5a1c175ce972f0a3d8```
+	* Download data with ```wget https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz; gunzip yellow_tripdata_2021-01.csv.gz ```
+	* With the ```yellow_tripdata_2021-01.csv```, we can run ```upload-data_HY.ipynb``` to get ```yellow_taxi_data``` in our data table ```ny_taxi```
+
+[Back to the top](#week-1-overview)
