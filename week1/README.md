@@ -10,6 +10,7 @@
 [1.3.1 - Introduction to Terraform Concepts & GCP Pre-Requisites](#131---introduction-to-terraform-concepts--gcp-pre-requisites)<br />
 [1.3.2 - Creating GCP Infrastructure with Terraform](#132---creating-gcp-infrastructure-with-terraform)<br />
 [1.4.1 - Setting up the Environment on Google Cloud (Cloud VM + SSH access)](#141---setting-up-the-environment-on-google-cloud-cloud-vm--ssh-access)<br />
+[1.4.2 - Port Mapping and Networks in Docker (Bonus)](#142---port-mapping-and-networks-in-docker-bonus)<br />
 
 
 ## [1.1.1 - Introduction to Google Cloud Platform](https://www.youtube.com/watch?v=18jIzE41fJ4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=3)
@@ -671,5 +672,50 @@ Besides the 3 blocks above, there are additional available blocks:
 	* Then if we forward port 8888 to local machine, we use the link jupyter notebook provided similar as ```http://localhost:8888/?token=d3e7b969ecc2fb8186d09536162e1c5a1c175ce972f0a3d8```
 	* Download data with ```wget https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz; gunzip yellow_tripdata_2021-01.csv.gz ```
 	* With the ```yellow_tripdata_2021-01.csv```, we can run ```upload-data_HY.ipynb``` to get ```yellow_taxi_data``` in our data table ```ny_taxi```
+
+[Back to the top](#week-1-overview)
+
+
+## [1.4.2 - Port Mapping and Networks in Docker (Bonus)](https://www.youtube.com/watch?v=tOr4hTsHOzU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=14)
+ ### **1. Port Mapping**
+![port_mapping.png](./img/port_mapping.png)<br/>
+If in our local host we already have PG running taking port 5432, we can switch to port 5431 instead, by editing the docker-compose.yaml from ```ports: -"5432:5432" to "5431:5432"```
+
+ ### **1. 2. error building image taxi_ingest:v001**
+```
+ssh de-zoomcamp
+cd /home/hanying/data-engineering-zoomcamp/week_1_basics_n_setup/2_docker_sql
+docker build -t taxi_ingest:v001 .
+```
+You will get ```checking context: 'can't stat '/home/hanying/data-engineering-zoomcamp/week_1_basics_n_setup/2_docker_sql/ny_taxi_postgres_data''.```
+
+It's because Linux is more restricted than Mac and the owner of the ny_taxi_postgres_data is ```systemd-coredump root```, but ```docker build``` need to check all. <br/>
+To solve the problem, delete the folder, then create a new folder ```data```, use ```.dockerignore``` to ignore data folder and update the ```docker-compose.yaml``` from ``` - "./ny_taxi_postgres_data:/var/lib/postgresql/data:rw"``` to   ```- "./data/ny_taxi_postgres_data:/var/lib/postgresql/data:rw"``` 
+```
+docker-compose down
+sudo rm -rf ny_taxi_postgres_data/ 
+docker-compose up -d
+```
+Then you will be able to run ```docker build -t taxi_ingest:v001 .```
+		
+Then to run ```ingest_data.py``` in the docker network
+```
+URL="https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz"
+		
+docker run -it \
+  --network=2_docker_sql_default \
+  taxi_ingest:v001 \
+    --user=root \
+    --password=root \
+    --host=pgdatabase \
+    --port=5432 \
+    --db=ny_taxi \
+    --table_name=yellow_taxi_trips \
+    --url=${URL}
+```		    
+Please note that here you shouldn't use 5431 instead of 5432, because the ingest script goes directly to the container in the network instead to our local host. The ```5431:5432``` mapping is only for the local testing.
+
+We run the following to check table ```yellow_taxi_trips```  with commands using 5431 for local host<br/>
+```pgcli -h localhost -p 5431 -u root -d ny_taxi```
 
 [Back to the top](#week-1-overview)
