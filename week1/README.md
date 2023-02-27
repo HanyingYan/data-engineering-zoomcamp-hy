@@ -8,6 +8,8 @@
 [1.2.5 - Running Postgres and pgAdmin with Docker-Compose](#125---running-postgres-and-pgadmin-with-docker-compose)<br />
 [1.2.6 - SQL Refresher](#126---sql-refresher)<br />
 [1.3.1 - Introduction to Terraform Concepts & GCP Pre-Requisites](#131---introduction-to-terraform-concepts--gcp-pre-requisites)<br />
+[1.3.2 - Creating GCP Infrastructure with Terraform](#132---creating-gcp-infrastructure-with-terraform)<br />
+
 
 
 ## [1.1.1 - Introduction to Google Cloud Platform](https://www.youtube.com/watch?v=18jIzE41fJ4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=3)
@@ -435,4 +437,89 @@ Setup for Access
   * ```Export GOOGLE_APPLICATION_CREDENTIALS="/Users/hanying/Documents/data-engineering-zoomcamp-hy/dtc-de-373006-58eecc9ef188.json"```
 
 
+## [1.3.2 - Creating GCP Infrastructure with Terraform](https://www.youtube.com/watch?v=dNkEgO-CExg&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=12)
+### **1. main.tf and variables.tf explanation**
+The set of files used to describe infrastructure in Terraform is known as a **Terraform configuration**. Terraform configuration files end up in ```.tf``` for files wtritten in Terraform language or ```tf.json``` for JSON files. A Terraform configuration must be in its own working directory; you cannot have 2 or more separate configurations in the same folder.
+Here we have two files, [```main.tf```](./1_terraform_gcp/main.tf) and [```variable.tf```](./1_terraform_gcp/variable.tf)
 
+**A. main.tf**
+1. Terraform divides information into **blocks**, which are defined within braces ({}), similar to Java or C++. However, unlike these languages, statements are not required to end with a semicolon ; but use linebreaks instead.
+1. By convention, arguments with single-line values in the same nesting level have their equal signs (=) aligned for easier reading.
+1. There are 3 main blocks: terraform, provider and resource. There must only be a single terraform block but there may be multiple provider and resource blocks.
+
+Declarations
+* terraform: configure basic Terraform settings to provision your infrastructure
+	```
+	terraform {
+	  required_version = ">= 1.0"
+	  backend "local" {}  # Can change from "local" to "gcs" (for google) or "s3" (for aws), if you would like to preserve your tf-state online
+	  required_providers {
+	    google = {
+	      source  = "hashicorp/google"
+	    }
+	  }
+	}
+	```
+  * required_version: minimum Terraform version to apply to your configuration
+  * backend: stores Terraform's "state" snapshots, to map real-world resources to your configuration.
+    * local: stores state file locally as terraform.tfstate
+  * required_providers: specifies the providers required by the current module
+
+* provider:
+	```
+	provider "google" {
+	  project = var.project
+	  region = var.region
+	  // credentials = file(var.credentials)  # Use this if you do not want to set env-var GOOGLE_APPLICATION_CREDENTIALS
+	}
+	```
+  * adds a set of resource types and/or data sources that Terraform can manage
+  * The Terraform Registry is the main directory of publicly available providers from most major infrastructure platforms.
+
+* resource
+	```
+	resource "google_bigquery_dataset" "dataset" {
+	  dataset_id = var.BQ_DATASET
+	  project    = var.project
+	  location   = var.region
+	}
+	```
+  * blocks to define components of your infrastructure
+  * Project modules/resources: google_storage_bucket, google_bigquery_dataset, google_bigquery_table
+
+**B. variable.tf**<br/>
+Besides the 3 blocks above, there are additional available blocks:
+
+* Input variables block types are useful for customizing aspects of other blocks without altering the other blocks' source code. They are often referred to as simply variables. They are passed at runtime.
+	```
+	variable "region" {
+	    description = "Region for GCP resources. Choose as per your location: https://cloud.google.com/about/locations"
+	    default = "europe-west6"
+	    type = string
+	}
+	```
+  * An input variable block starts with the type variable followed by a name of our choosing.
+  * The block may contain a number of fields. In this example we use the fields ```description```, ```type``` and ```default```
+  * Variables must be accessed with the keyword ```var.``` and then the name of the variable as we have seen before in ```main.tf```.
+
+* Local values block types behave more like constants.
+	```
+	locals {
+	  data_lake_bucket = "dtc_data_lake"
+	}
+	```
+  * Local values may be grouped in one or more blocks of type ```locals```. Local values are often grouped according to usage.
+  * Local values are simpler to declare than input variables because they are only a key-value pair.
+  * Local values must be accessed with the word ```local.```. We use ```local.data_lake_bucket``` in ```mian.tf```
+
+ ### **2. running Terraform commands** 
+* ```terraform init``` : initialize your work directory by downloading the necessary providers/plugins.
+  * Will generate ```.terraform.lock.hcl``` and ```.terraform``` folder with ```terraform.tfstate```
+* ```terraform fmt``` (optional): formats your configuration files so that the format is consistent.
+* ```terraform validate``` (optional): returns a success message if the configuration is valid and no errors are apparent.
+* ```terraform plan``` : creates a preview of the changes to be applied against a remote state, allowing you to review the changes before applying them.
+  * we will need to provide the project_id, mime is ```dtc-de-373006```
+* ```terraform apply``` : applies the changes to the infrastructure.
+  * I do ```terraform apply -var="project=dtc-de-373006"```
+  * Now if go to cloud storage we will see the bucket with concatenated unique name, and if you go to Bigquery, we will see the trips_data_all
+* ```terraform destroy```: to removes your stack from the infrastructure to avoid costs on any running services.
