@@ -5,6 +5,7 @@
 [1.2.2 - Ingesting NY Taxi Data to Postgres](#122---ingesting-ny-taxi-data-to-postgres)<br />
 [1.2.3 - Connecting pgAdmin and Postgres](#123---connecting-pgadmin-and-postgres)<br />
 [1.2.4 - Dockerizing the Ingestion Script](#124---dockerizing-the-ingestion-script)<br />
+[1.2.5 - Running Postgres and pgAdmin with Docker-Compose](#125---running-postgres-and-pgadmin-with-docker-compose)<br />
 
 
 ## [1.1.1 - Introduction to Google Cloud Platform](https://www.youtube.com/watch?v=18jIzE41fJ4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=3)
@@ -262,3 +263,46 @@ docker run -it \
 * We need to provide the network for Docker to find the Postgres container. It goes before the name of the image.
 * Since Postgres is running on a separate container, the host argument will have to point to the container name of Postgres.
 * We can use ```docker ps``` to check the containers that are running.
+
+
+## [1.2.5 - Running Postgres and pgAdmin with Docker-Compose](https://www.youtube.com/watch?v=hKI6PkPhpa0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=9)
+### **1. Introduction to Docker-Compose and Running Docker-Compose**
+docker network is more for us to do local testing. In real life scenario we may need to use a url to some database that runs in the cloud.<br />
+```docker-compose``` allows us to launch multiple containers using a single configuration file, so that we don't have to run multiple complex ```docker run``` commands separately.
+With Compose, you use a YAML file to configure your application’s services. Then, with a single command, you create and start all the services from your configuration - [```docker-compose.yml```](./2_docker_sql/docker-compose.yml)
+```
+services:
+  pgdatabase:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=ny_taxi
+    volumes: 
+      - "./ny_taxi_postgres_data:/var/lib/postgresql/data:rw"
+    ports:
+      - "5432:5432" 
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=root
+    ports:
+     - "8080:80"
+```
+* We don't have to specify a network because docker-compose takes care of it: every single container (or "service", as the file states) will run withing the same network and will be able to find each other according to their names (```pgdatabase``` and ```pgadmin``` in this example).
+* All other details from the ```docker run``` commands (environment variables, volumes and ports) are mentioned accordingly in the file following YAML syntax.
+
+We can now run Docker compose by running the following command from the same directory where [```docker-compose.yml```](./2_docker_sql/docker-compose.yml) is found. Make sure that all previous containers aren't running anymore:
+```
+docker ps
+docker-compose up
+```
+You will have to press ```Ctrl+C`` in order to shut down the containers. The proper way of shutting them down is with this command:
+```
+docker-compose down
+```
+And if you want to run the containers again in the background rather than in the foreground (thus freeing up your terminal), you can run them in *detached mode*:
+```
+docker-compose up -d
+```
