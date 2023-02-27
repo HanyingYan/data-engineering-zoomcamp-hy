@@ -2,6 +2,7 @@
 
 [1.1.1 - Introduction to Google Cloud Platform](#111---introduction-to-google-cloud-platform)<br />
 [1.2.1 - Introduction to Docker](#121---introduction-to-docker)<br />
+[1.2.2 - Ingesting NY Taxi Data to Postgres](#122---ingesting-ny-taxi-data-to-postgres)<br />
 
 
 ## [1.1.1 - Introduction to Google Cloud Platform](https://www.youtube.com/watch?v=18jIzE41fJ4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=3)
@@ -45,7 +46,7 @@ We can also run a different one on image python with tag version 3.9 with entryp
 docker run -it --entrypoint=bash python:3.9
 ```
 ### **4. Some fancy codes**<br />
-First, let's create a dummy ```pipeline.py``` script to receives an argument and prints a sentence.
+First, let's create a dummy [```pipeline.py```](./2_docker_sql/pipeline.py) script to receives an argument and prints a sentence.
 ```
 import sys
 
@@ -92,3 +93,55 @@ Now if we run the container with an argument, we will get 'job finished successf
 ```
 docker run -it test:pandas 2021-01-15
 ```
+
+## [1.2.2 - Ingesting NY Taxi Data to Postgres](https://www.youtube.com/watch?v=2JM-ziJt0WI&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=5)
+### **1. Running Postgres in a container**
+We can run a containerized version of Postgres that doesn't require any installation steps. We only need to provide a few environment variables to it as well as a **volume** for storing data.
+
+Create a folder anywhere you'd like for Postgres to store data in. We will use the example folder ```ny_taxi_postgres_data```. Here's how to run the container:
+```
+docker run -it \
+    -e POSTGRES_USER="root" \
+    -e POSTGRES_PASSWORD="root" \
+    -e POSTGRES_DB="ny_taxi" \
+    -v $(pwd)/ny_taxi_postgres_data:/var/lib/postgresql/data \
+    -p 5432:5432 \
+    postgres:13
+```
+* The container needs 3 environment variables:
+    * `POSTGRES_USER` is the username for logging into the database. We chose `root`.
+    * `POSTGRES_PASSWORD` is the password for the database. We chose `root`
+        * ***IMPORTANT: These values are only meant for testing. Please change them for any serious project.***
+    * `POSTGRES_DB` is the name that we will give the database. We chose `ny_taxi`.
+* `-v` points to the volume directory. The colon `:` separates the first part (path to the folder in the host computer) from the second part (path to the folder inside the container).
+    * Path names must be absolute. If you're in a UNIX-like system, you can use `pwd` to print you local folder as a shortcut; this example should work with both `bash` and `zsh` shells, but `fish` will require you to remove the `$`.
+    * This command will only work if you run it from a directory which contains the `ny_taxi_postgres_data` subdirectory you created above.
+* The `-p` is for port mapping. We map the default Postgres port to the same port in the host.
+* The last argument is the image name and tag. We run the official `postgres` image on its version `13`.
+
+Once the container is running, we can log into our database with [pgcli](https://www.pgcli.com/) with the following command:
+```bash
+pgcli -h localhost -p 5432 -u root -d ny_taxi
+```
+* **pgcli** is the postgres command line interface, to use, first download it. I used ```brew install pgcli```
+* there are several parameters to speficy
+  * `-h` is the host. Since we're running locally we can use `localhost`.
+  * `-p` is the port.
+  * `-u` is the username.
+  * `-d` is the database name.
+  * The password is not provided; it will be requested after running the command.
+* after logging in, you can do ```\dt``` to see the tables/schemas available, which should be empty. 
+
+### **2.  Ingesting data to Postgres with Python**
+We will now create a Jupyter Notebook [```upload-data.ipynb```](./2_docker_sql/upload-data.ipynb) file which we will use to read a CSV file and export it to Postgres.
+
+We will use data from the [NYC TLC Trip Record Data website](https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page), which have been archived [here](https://github.com/DataTalksClub/nyc-tlc-data). Specifically, we will use the [Yellow taxi trip records CSV file for January 2021](https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2019-01.csv.gz). A dictionary to understand each field is available [here](https://www1.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf). To download the file, I use 
+```
+brew install wget
+wget https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz
+gunzip yellow_tripdata_2021-01.csv.gz
+```
+>Note: knowledge of Jupyter Notebook, Python environment management and Pandas is asumed in these notes. <br/>
+I have created a conda environment named de with python=3.9, and install jupyter notebook to use with <br/>
+```conda create -n de python=3.9; conda activate de; pip install jupyter```
+
