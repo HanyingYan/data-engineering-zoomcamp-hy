@@ -4,6 +4,7 @@
 [5.1.2 - Introduction to Spark](#512---introduction-to-spark)<br />
 [5.2.1 - (Optional) Installing Spark on Linux](#521---optional-installing-spark-on-linux)<br />
 [5.3.1 - First Look at Spark/PySpark](#531---first-look-at-sparkpyspark)<br />
+[5.3.2 - Spark DataFrames](#532---spark-dataframes)<br />
 
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
@@ -274,6 +275,115 @@ Trying to write the files again will output an error because Spark will not writ
 df.write.parquet('fhvhv/2021/01/', mode='overwrite')
 ```
 The opposite of partitioning (joining multiple partitions into a single partition) is called **coalescing**.
+
+[Back to the top](#week-5-overview)
+
+
+## [5.3.2 - Spark DataFrames](https://www.youtube.com/watch?v=ti3aC1m3rE8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=46)<br />
+### **1. Basic PySpark functions**
+As we said before, Spark works with dataframes. We can create a dataframe from the parquet files we created in the previous section:
+```
+df = spark.read.parquet('fhvhv/2021/01/')
+```
+Unlike CSV files, parquet files contain the schema of the dataset, so there is no need to specify a schema like we previously did when reading the CSV file. You can check the schema like this:
+```
+df.printSchema()
+```
+(One of the reasons why parquet files are smaller than CSV files is because they store the data according to the datatypes, so integer values will take less space than long or string values.)
+
+There are many Pandas-like operations that we can do on Spark dataframes, such as:
+* Column selection - returns a dataframe with only the specified columns.
+```
+new_df = df.select('pickup_datetime', 'dropoff_datetime', 'PULocationID', 'DOLocationID')
+```
+* Filtering by value - returns a dataframe whose records match the condition stated in the filter.
+```
+new_df = df.filter(df.hvfhs_license_num == 'HV0003')
+```
+
+### **2. Actions vs Transformations**
+Some Spark methods are "lazy", meaning that they are not executed right away, after running them, the Spark UI will not show any new jobs. 
+However, others will execute right away and display the contents of the dataframe; and the Spark UI will also show a new job.
+
+These lazy commands are called **transformations** and the eager commands are called **actions**. Computations only happen when actions are triggered.
+```python
+df.select(...).filter(...).show()
+```
+```mermaid
+graph LR;
+    a(df)-->b["select()"]
+    b-->c["filter()"]
+    c-->d{{"show()"}}
+    style a stroke-dasharray: 5
+    style d fill:#800, stroke-width:3px
+```
+Both `select()` and `filter()` are _transformations_, but `show()` is an action. The whole instruction gets evaluated only when the `show()` action is triggered.
+
+**List of transformations (lazy):**
+* select (columns)
+* filter (rows)
+* join
+* group by
+* partition
+* ...
+
+**List of actions (eager):**
+* show, take, head
+* write, read
+* ...
+
+### **3. Functions and User Defined Functions (UDFs)**
+**1. Functions**<br />
+Besides the SQL and Pandas-like commands we've seen so far, Spark provides additional built-in functions that allow for more complex data manipulation. By convention, these functions are imported as follows:
+```
+from pyspark.sql import functions as F
+```
+Here is an example of built-in function usage:
+```
+df \
+    .withColumn('pickup_date', F.to_date(df.pickup_datetime)) \
+    .withColumn('dropoff_date', F.to_date(df.dropoff_datetime)) \
+    .select('pickup_date', 'dropoff_date', 'PULocationID', 'DOLocationID') \
+    .show()
+```
+* ```withColumn()``` is a transformation that adds a new column to the dataframe.
+  * IMPORTANT: adding a new column with the same name as a previously existing column will **overwrite** the existing column!
+* ```select()``` is another transformation that selects the stated columns.
+* ```F.to_date()``` is a built-in Spark function that converts a timestamp to date format (year, month and day only, no hour and minute).
+
+A list of built-in functions is available [here](https://spark.apache.org/docs/latest/api/sql/index.html). You can also do ```F.``` then press ```tab``` to let jupyter notebook show you a list of functions available. And you can use ```shift+tab``` to get definition of a funtion.
+
+
+**2. User Defined Functions (UDFs)**<br />
+Besides these built-in functions, Spark allows us to create **User Defined Functions (UDFs)** with custom behavior for those instances where creating SQL queries for that behaviour becomes difficult both to manage and test.
+
+UDFs are regular functions which are then passed as parameters to a special builder. We can create one below:
+```
+# A crazy function that changes values when they're divisible by 7 or 3
+def crazy_stuff(base_num):
+    num = int(base_num[1:])
+    if num % 7 == 0:
+        return f's/{num:03x}'
+    elif num % 3 == 0:
+        return f'a/{num:03x}'
+    else:
+        return f'e/{num:03x}'
+
+# Creating the actual UDF
+crazy_stuff_udf = F.udf(crazy_stuff, returnType=types.StringType())
+```
+* ```F.udf()``` takes a function (```crazy_stuff()``` in this example) as parameter as well as a return type for the function (a string in our example).
+* While ```crazy_stuff()``` is obviously non-sensical, UDFs are handy for things such as ML and other complex operations for which SQL isn't suitable or desirable. Python code is also easier to test than SQL.
+
+We can then use our UDF in transformations just like built-in functions:
+```
+df \
+    .withColumn('pickup_date', F.to_date(df.pickup_datetime)) \
+    .withColumn('dropoff_date', F.to_date(df.dropoff_datetime)) \
+    .withColumn('base_id', crazy_stuff_udf(df.dispatching_base_num)) \
+    .select('base_id', 'pickup_date', 'dropoff_date', 'PULocationID', 'DOLocationID') \
+    .show()
+```
 
 [Back to the top](#week-5-overview)
 
