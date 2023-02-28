@@ -3,6 +3,8 @@
 [5.1.1 - Introduction to Batch processing](#511---introduction-to-batch-processing)<br />
 [5.1.2 - Introduction to Spark](#512---introduction-to-spark)<br />
 [5.2.1 - (Optional) Installing Spark on Linux](#521---optional-installing-spark-on-linux)<br />
+[5.3.1 - First Look at Spark/PySpark](#531---first-look-at-sparkpyspark)<br />
+
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
 ### **1. Batch vs Streaming**
@@ -224,4 +226,54 @@ export PYTHONPATH="${SPARK_HOME}/python/lib/py4j-0.10.9.5-src.zip:$PYTHONPATH"
    
 [Back to the top](#week-5-overview)
 
+
+## [5.3.1 - First Look at Spark/PySpark](https://www.youtube.com/watch?v=r_Sf6fCB40c&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=45)
+### **1. Read fhvhv CSV file**
+Create a [```531+2_pyspark.ipynb```](531+2_pyspark.ipynb) to read file.
+```
+df = spark.read \
+    .option("header", "true") \
+    .csv('fhvhv_tripdata_2021-01.csv')
+```
+We can see the contents of the dataframe with ```df.show()``` (only a few rows will be shown) or ```df.head()```. You can also check the current schema with ```df.schema```; you will notice that all values are strings. 
+This is because spark doesn't try to infer the types of the fields
+
+We can use a trick with pandas to infer the datatypes
+* create a smaller csv file with the first 1000 records
+* import pandas and create a pandas dataframe with it. Pandas will try to guess the datatypes.
+* create a spark dataframe from the pandas dataframe, check the schema
+* based on the outputs, import ```types``` from ```pyspark.sql``` and create a ```StructType``` containing a list of the datatypes inferred from pandas.
+* createa a new spark dataframe with the schema we define above.
+
+### **2. Partitions**
+A **Spark cluster** is composed of multiple **executors**. Each executor can process data independently in order to parallelize and speed up work.
+
+In the previous example we read a single large CSV file. A file can only be read by a single executor, which means that the code we've written so far isn't parallelized and thus will only be run by a single executor rather than many at the same time.
+
+In order to solve this issue, we can split a file into multiple parts so that each executor can take care of a part and have all executors working simultaneously. These splits are called partitions.<br/>
+![partitions.png](./img/partitions.png)
+
+We will now read the CSV file, partition the dataframe and parquetize it. This will create multiple files in parquet format.
+```
+# create 24 partitions in our dataframe
+df = df.repartition(24)
+# parquetize and write to fhvhv/2021/01/ folder
+df.write.parquet('fhvhv/2021/01/')
+```
+You may check the Spark UI at any time and see the progress of the current job, which is divided into stages which contain tasks. The tasks in a stage will not start until all tasks on the previous stage are finished.<br/>
+![partition_job1.png](./img/partition_job1.png)
+
+When creating a dataframe, Spark creates as many partitions as CPU cores available by default, and each partition creates a task. Thus, assuming that the dataframe was initially a single large file, the ```write.parquet()``` method will have a stage with 24 tasks.<br/>
+![partition_job2.png](./img/partition_job2.png)
+
+Besides the 24 parquet files, you should also see a ```_SUCCESS``` file which should be empty. This file is created when the job finishes successfully.<br/>
+![partition_job3.png](./img/partition_job3.png)
+
+Trying to write the files again will output an error because Spark will not write to a non-empty folder. You can force an overwrite with the mode argument:
+```
+df.write.parquet('fhvhv/2021/01/', mode='overwrite')
+```
+The opposite of partitioning (joining multiple partitions into a single partition) is called **coalescing**.
+
+[Back to the top](#week-5-overview)
 
