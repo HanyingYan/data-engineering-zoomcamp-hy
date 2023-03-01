@@ -5,6 +5,7 @@
 [5.2.1 - (Optional) Installing Spark on Linux](#521---optional-installing-spark-on-linux)<br />
 [5.3.1 - First Look at Spark/PySpark](#531---first-look-at-sparkpyspark)<br />
 [5.3.2 - Spark DataFrames](#532---spark-dataframes)<br />
+[5.3.3 - (Optional) Preparing Yellow and Green Taxi Data](#533---optional-preparing-yellow-and-green-taxi-data)<br />
 
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
@@ -387,3 +388,26 @@ df \
 
 [Back to the top](#week-5-overview)
 
+
+## [5.3.3 - (Optional) Preparing Yellow and Green Taxi Data](https://www.youtube.com/watch?v=CI3P4tAtru4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=47)
+We first create [```download.sh```](./download.sh) for yellow and green tripdata of year 2020 and 2021
+```
+./download.sh yellow 2021
+./download.sh yellow 2020
+./download.sh green 2021
+./download.sh green 2020
+```
+* Note, for 2021 we don't have data from month 08 to 12
+* you can check all the files you downloaded using 
+   ```
+   sudo apt-get install tree
+   tree data
+
+   rm -rf data/raw/*/2021/08/
+   ```
+Then we run [```533_taxi_schema.ipynb```](./533_taxi_schema.ipynb) to save them as parquet files. 
+Note: If you still have ```SparkSession``` open before with port 4040 occupied, forward a new port 4041 instead to see the job details.
+Now we will have all the data we need with reasonable schema.
+![data_schema.png](./img/data_schema.png)
+
+[Back to the top](#week-5-overview)
