@@ -7,6 +7,7 @@
 [5.3.2 - Spark DataFrames](#532---spark-dataframes)<br />
 [5.3.3 - (Optional) Preparing Yellow and Green Taxi Data](#533---optional-preparing-yellow-and-green-taxi-data)<br />
 [5.3.4 - SQL with Spark](#534---sql-with-spark)<br />
+[5.4.1 - Anatomy of a Spark Cluster](#541---anatomy-of-a-spark-cluster)<br/>
 
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
@@ -536,3 +537,34 @@ This reduces the amount of partitions to just 1.
 [Back to the top](#week-5-overview)
 
 
+## [5.4.1 - Anatomy of a Spark Cluster](https://www.youtube.com/watch?v=68CipcZt7ZA&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=49)
+Until now, we've used a *local cluster* to run our Spark code, but Spark clusters often contain multiple computers that behace as executors.
+
+Spark clusters are managed by a master, which behaves similarly to an entry point of a Kubernetes cluster. A driver (an Airflow DAG, a computer running a local script, etc.) that wants to execute a Spark job will send the job to the master, which in turn will coordinate the work among the cluster's executors. If any executor fails and becomes offline for any reason, the master will reassign the task to another executor. If one executor finished its work, master can also assign another work to it.
+
+```mermaid
+flowchart LR;
+    a[/"driver (Spark job)"\]--"spark-submit"-->master
+    subgraph datacenter ["Data Center"]
+    subgraph cluster ["Spark cluster"]
+    master(["master<br/>(port 4040)"])
+    master-->e1{{executor}}
+    master-->e2{{executor}}
+    master-->e3{{executor}}
+    end
+    subgraph df ["Dataframe (in S3/GCS)"]
+    p0[partition]
+    e1<-->p1[partition]:::running
+    e2<-->p2[partition]:::running
+    e3<-->p3[partition]:::running
+    p4[partition]
+    style p0 fill:#080
+    classDef running fill:#b70;
+    end
+    end
+```
+Each executor will fetch a dataframe partition stored in a Data Lake (usually S3, GCS or a similar cloud provider), do something with it and then store the results somewhere, which could be the same Data Lake or somewhere else. If there are more partitions than executors, executors will keep fetching partitions until every single one has been processed.
+
+This is in contrast to **Hadoop**, another data analytics engine, whose executors *locally* store the data they process. Partitions in Hadoop are duplicated across several executors for redundancy, in case an executor fails for whatever reason (Hadoop is meant for clusters made of commodity hardware computers). However, data locality has become less important as storage and data transfer costs have dramatically decreased. Nowadays it's feasible to separate storage from computation with data centers, so Hadoop has fallen out of fashion.
+
+[Back to the top](#week-5-overview)
