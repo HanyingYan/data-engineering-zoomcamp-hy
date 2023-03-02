@@ -10,6 +10,7 @@
 [5.4.1 - Anatomy of a Spark Cluster](#541---anatomy-of-a-spark-cluster)<br/>
 [5.4.2 - GroupBy in Spark](#542---groupby-in-spark)<br/>
 [5.4.3 - Join in Spark](#543---join-in-spark)<br/>
+[5.5.1 - (Optional) Operations on Spark RDDs](#551---optional-operations-on-spark-rdds)<br/>
 
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
@@ -828,3 +829,126 @@ Here **shuffling** isn't needed because each executor already has all of the nec
 
 [Back to the top](#week-5-overview)
 
+
+## [5.5.1 - (Optional) Operations on Spark RDDs](https://www.youtube.com/watch?v=Bdu-xIrF3OM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=52)
+The codes and results can be found in [```551+2_rdds.ipynb```](551+2_rdds.ipynb) part 1.
+
+### **1. RDD Basics**
+**Resilient Distributed Datasets (RDDs)** are the main abstraction provided by Spark and consist of collection of elements partitioned accross the nodes of the cluster.
+
+**Dataframes** are actually built on top of RDDs and contain a **schema** as well, which plain RDDs do not.
+
+### **2. Convert between Dataframe and RDD**
+**A. From Dataframe to RDD: filter, take**<br/>
+Spark dataframes contain a ```rdd``` field which contains the raw RDD of the dataframe. The RDD's objects used for the dataframe are called ```rows```.
+To re-implement the groupby query below which we saw in [5.4.2](#542---groupby-in-spark)
+```
+SELECT 
+    date_trunc('hour', lpep_pickup_datetime) AS hour, 
+    PULocationID AS zone,
+
+    SUM(total_amount) AS amount,
+    COUNT(1) AS number_records
+FROM
+    green
+WHERE
+    lpep_pickup_datetime >= '2020-01-01 00:00:00'
+GROUP BY
+    1, 2
+```
+1. Re-implement the ```SELECT``` section by choosing the 3 fields from the RDD's rows.
+```
+rdd = df_green \
+    .select('lpep_pickup_datetime', 'PULocationID', 'total_amount') \
+    .rdd
+```
+2. Re-implement the ```WHERE``` section by using ```filter()``` and ```take()``` method.
+```
+from datetime import datetime
+
+start = datetime(year=2020, month=1, day=1)
+
+def filter_outliers(row):
+    return row.lpep_pickup_datetime >= start
+
+rdd.filter(filter_outliers).take(1)
+```
+   * ```filter()``` returns a new RDD cointaining only the elements that satisfy a **predicate**, which in our case is a function that we pass as a parameter.
+   * ```take()``` takes as many elements from the RDD as stated.
+
+**B. Operations on RDDs: map, reduceByKey**<br/>
+The ```GROUP BY``` is more complex and makes use of special methods.
+1. We need to generate *intermediate results* in a very similar way to the original SQL query, so we will need to create the composite key ```(hour, zone)``` and a composite value ```(amount, count)```, which are the 2 halves of each record that the executors will generate. Once we have a function that generates the record, we will use the ```map()``` method, which takes an RDD, transforms it with a function (our key-value function) and returns a new RDD.
+```
+def prepare_for_grouping(row): 
+    hour = row.lpep_pickup_datetime.replace(minute=0, second=0, microsecond=0)
+    zone = row.PULocationID
+    key = (hour, zone)
+    
+    amount = row.total_amount
+    count = 1
+    value = (amount, count)
+
+    return (key, value)
+```
+2. We now need to use the ```reduceByKey()``` method, which will take all records with the same key and put them together in a single record by transforming all the different values according to some rules which we can define with a custom function. Since we want to count the total amount and the total number of records, we just need to add the values:
+```
+def calculate_revenue(left_value, right_value):
+    # tuple unpacking
+    left_amount, left_count = left_value
+    right_amount, right_count = right_value
+    
+    output_amount = left_amount + right_amount
+    output_count = left_count + right_count
+    
+    return (output_amount, output_count)
+``` 
+3. The output we have is already usable but not very nice, so we ```map``` the output again in order to ```unwrap``` it.
+```
+from collections import namedtuple
+RevenueRow = namedtuple('RevenueRow', ['hour', 'zone', 'revenue', 'count'])
+def unwrap(row):
+    return RevenueRow(
+        hour=row[0][0], 
+        zone=row[0][1],
+        revenue=row[1][0],
+        count=row[1][1]
+    )
+```
+   * Here using ```namedtuple``` isn't necessary but it will help in the next step. 
+
+Combine A and B, we can run
+```
+rdd \
+    .filter(filter_outliers) \
+    .map(prepare_for_grouping) \
+    .reduceByKey(calculate_revenue) \
+    .map(unwrap)
+    .take(10)
+```
+
+**C. From RDD to Dataframe: toDF, show**<br/>
+Finally, we can take the resulting RDD and convert it to a dataframe with ```toDF()```. We will need to generate a schema first because we lost it when converting RDDs:
+```
+from pyspark.sql import types
+
+result_schema = types.StructType([
+    types.StructField('hour', types.TimestampType(), True),
+    types.StructField('zone', types.IntegerType(), True),
+    types.StructField('revenue', types.DoubleType(), True),
+    types.StructField('count', types.IntegerType(), True)
+])
+```
+We can use ```toDF()``` without any schema as an input parameter, but Spark will have to figure out the schema by itself which may take a substantial amount of time. Using ```namedtuple``` in the previous step allows Spark to infer the *column names* but Spark will still need to figure out the *data types*; by passing a schema as a parameter we skip this step and get the output much faster.
+```
+df_result = rdd \
+    .filter(filter_outliers) \
+    .map(prepare_for_grouping) \
+    .reduceByKey(calculate_revenue) \
+    .map(unwrap) \
+    .toDF(result_schema) \
+    .show()
+```
+As you can see, manipulating RDDs to perform SQL-like queries is complex and time-consuming. Ever since Spark added support for dataframes and SQL, manipulating RDDs in this fashion has become obsolete, but since dataframes are built on top of RDDs, knowing how they work can help us understand how to make better use of Spark.
+
+[Back to the top](#week-5-overview)
