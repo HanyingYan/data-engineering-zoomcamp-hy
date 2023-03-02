@@ -9,7 +9,7 @@
 [5.3.4 - SQL with Spark](#534---sql-with-spark)<br />
 [5.4.1 - Anatomy of a Spark Cluster](#541---anatomy-of-a-spark-cluster)<br/>
 [5.4.2 - GroupBy in Spark](#542---groupby-in-spark)<br/>
-
+[5.4.3 - Join in Spark](#543---join-in-spark)<br/>
 
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
@@ -573,7 +573,7 @@ This is in contrast to **Hadoop**, another data analytics engine, whose executor
 
 
 ## [5.4.2 - GroupBy in Spark](https://www.youtube.com/watch?v=9qrDsY_2COo&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=50)
-The codes and results can be found in [```542+3_groupby_join.ipynb```](542+3_groupby_join.ipynb)
+The codes and results can be found in [```542+3_groupby_join.ipynb```](542+3_groupby_join.ipynb) part 1.
 
 ```
 df_green_revenue = spark.sql("""
@@ -702,4 +702,129 @@ df_green_revenue \
 [Back to the top](#week-5-overview)
 
 
+## [5.4.3 - Join in Spark](https://www.youtube.com/watch?v=lu7TrqAWuH4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=51)
+The codes and results can be found in [```542+3_groupby_join.ipynb```](542+3_groupby_join.ipynb) part 2.
+### **1. Joining 2 large tables**<br />
+To join both ```df_yellow_revenue``` and ```df_green_revenue```, we will first create temporary dataframes with changed column names so that we can tell apart data from each original table:
+```
+df_green_revenue_tmp = df_green_revenue \
+    .withColumnRenamed('amount', 'green_amount') \
+    .withColumnRenamed('number_records', 'green_number_records')
+
+df_yellow_revenue_tmp = df_yellow_revenue \
+    .withColumnRenamed('amount', 'yellow_amount') \
+    .withColumnRenamed('number_records', 'yellow_number_records')
+```
+
+We will now perform an **outer join** so that we can display the amount of trips and revenue per hour per zone for green and yellow taxis at the same time regardless of whether the hour/zone combo had one type of taxi trips or the other:
+```
+df_join = df_green_revenue_tmp.join(df_yellow_revenue_tmp, on=['hour', 'zone'], how='outer')
+```
+* ```on=``` receives a list of columns by which we will join the tables. This will result in a **primary composite key** for the resulting table.
+* ```how= ```specifies the type of ```JOIN``` to execute.
+
+When we run either ```show()``` or ```write()``` on this query, Spark will have to create both the temporary dataframes and the joint final dataframe. The DAG will look like this:
+```mermaid
+graph LR
+    subgraph S1[Stage 1]
+        direction TB
+        s1(Scan parquet)-->s2("WholeStageCodegen(3)")-->s3(Exchange)
+    end
+    subgraph S2[Stage 2]
+        direction TB
+        s4(Scan parquet)-->s5("WholeStageCodegen(1)")-->s6(Exchange)
+    end
+    subgraph S3[Stage 3]
+        direction TB
+        s7(Exchange)-->s8("WholeStageCodegen(2)")
+        s9(Exchange)-->s10("WholeStageCodegen(4)")
+        s8 & s10 -->s11(SortMergeJoin)-->s12("WholeStageCodegen(5)")
+    end
+    s3-->s9
+    s6-->s7
+```
+* Stages 1 and 2 belong to the creation of ```df_green_revenue_tmp``` and ```df_yellow_revenue_tmp```.
+( For stage 3, given all records for yellow taxis ```Y1, Y2, ... , Yn``` and for green taxis ```G1, G2, ... , Gn``` and knowing that the resulting composite key is key ```K = (hour H, zone Z)```, we can express the resulting complex records as ```(Kn, Yn)``` for yellow records and ```(Kn, Gn)``` for green records. Spark will first **reshuffle** the data like it did for grouping (using the **external merge sort algorithm**) and then it will reduce the records by joining yellow and green data for matching keys to show the final output.
+```mermaid
+graph LR
+    subgraph Y [yellow taxis]
+        y1("(K1, Y1)<br/>(K2, Y2)")
+        y2("(K3, Y3)")
+    end
+    subgraph G [green taxis]
+        g1("(K2, G1)<br/>(K3, G2)")
+        g2("(K4, G3)")
+    end
+    subgraph S [shuffled partitions]
+        s1("(K1, Y1)<br/>(K4, G3)")
+        s2("(K2, Y2)<br/>(K2, G1)")
+        s3("(K3, Y3)<br/>(K3, G2)")
+    end
+    subgraph R [reduced partitions]
+        r1("(K1, Y1, Ø)<br/>(K4, Ø, G3)")
+        r2("(K2, Y2, G1)")
+        r3("(K3, Y3, G2)")
+    end
+    y1 --> s1 & s2
+    y2 --> s3
+    g1 --> s2 & s3
+    g2 --> s1
+    s1 --> r1
+    s2 --> r2
+    s3 --> r3
+
+```
+* If we are doing ```inner join```, then ```(K1, Y1, Ø)``` and ```(K4, Ø, G3)``` will be filtered out.
+
+### **2. Joining a large table and a small table**<br />
+Let's now use the zones lookup table to match each zone ID to its corresponding name.
+```
+df_zones = spark.read.parquet('zones/')
+
+df_result = df_join.join(df_zones, df_join.zone == df_zones.LocationID)
+df_result.show()
+
+df_result.drop('LocationID', 'zone').write.parquet('tmp/revenue-zones')
+```
+* The default join type in Spark SQL is the ```inner join```.
+* Because we have different column names in each table, we can't simply specify the columns to join wiht ```on```, but need to provide a condition as criteria.
+* We use the ```drop()``` method to get rid of the extra columns we don't need anymore, because we only want to keep the zone names ```Zone``` and both ```LocationID``` and ```zone``` are duplicate columns with numeral ID's only.
+* We also use ```write()``` after ```show()``` because ```show()``` might not process all of the data.
+
+The zones table is actually very small and joining both tables with **merge sort** is unnecessary and . What Spark does instead is **broadcasting**: Spark sends a copy of the complete table to all of the executors and each executor then joins each partition of the big table in memory by performing a ***lookup*** on the local broadcasted table.
+
+```mermaid
+graph LR
+    subgraph B [big table - df_join]
+        b1[partition 1]
+        b2[partition 2]
+        b3[partition 3]
+    end
+    subgraph E [executors]
+        subgraph E1 [executor 1]
+            e1{{executor}} -.->|lookup| z1["zones (local)"]
+            z1 -.->|return| e1
+        end
+        subgraph E2 [executor 2]
+            e2{{executor}} -.->|lookup| z2["zones (local)"]
+            z2 -.->|return| e2
+        end
+        subgraph E3 [executor 3]
+            e3{{executor}} -.->|lookup| z3["zones (local)"]
+            z3 -.->|return| e3
+        end
+    end
+    subgraph R [result]
+        r1[zone, ...]
+        r2[zone, ...]
+        r3[zone, ...]
+    end
+    z[small table - zones]-.->|broadcast| z1 & z2 & z3
+    b1-->e1-->r1
+    b2-->e2-->r2
+    b3-->e3-->r3
+```
+Here **shuffling** isn't needed because each executor already has all of the necessary info to perform the join on each partition, thus speeding up the join operation by orders of magnitude.
+
+[Back to the top](#week-5-overview)
 
