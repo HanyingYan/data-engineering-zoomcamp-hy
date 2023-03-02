@@ -11,6 +11,7 @@
 [5.4.2 - GroupBy in Spark](#542---groupby-in-spark)<br/>
 
 
+
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
 ### **1. Batch vs Streaming**
 There are 2 ways of processing data:
@@ -688,6 +689,17 @@ By default, Spark will repartition the dataframe to **200** partitions after shu
 
 Shuffling is an expensive operation, so it's in our best interest to reduce the amount of data to shuffle when querying. (Keep in mind that repartitioning also involves shuffling data.)
 
-Note: there might be some updates for the spark nowadays. For example, n parition = 4 when I run it.
+Note: there might be some updates for the spark nowadays. For example, #partition = 4 when I run it.
+```
+df_green_revenue.write.parquet('data/report/revenue/green')
+
+df_green_revenue \
+    .repartition(20) \
+    .write.parquet('data/report/revenue/green', mode='overwrite')
+```
+![repartition.png](./img/repartition.png)
 
 [Back to the top](#week-5-overview)
+
+
+
