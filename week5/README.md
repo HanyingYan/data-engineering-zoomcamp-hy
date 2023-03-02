@@ -6,6 +6,7 @@
 [5.3.1 - First Look at Spark/PySpark](#531---first-look-at-sparkpyspark)<br />
 [5.3.2 - Spark DataFrames](#532---spark-dataframes)<br />
 [5.3.3 - (Optional) Preparing Yellow and Green Taxi Data](#533---optional-preparing-yellow-and-green-taxi-data)<br />
+[5.3.4 - SQL with Spark](#534---sql-with-spark)<br />
 
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
@@ -411,3 +412,127 @@ Now we will have all the data we need with reasonable schema.
 ![data_schema.png](./img/data_schema.png)
 
 [Back to the top](#week-5-overview)
+
+
+## [5.3.4 - SQL with Spark](https://www.youtube.com/watch?v=uAlp2VuZZPY&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=48)
+The codes and results can be found in [```534_spark_sql.ipynb```](534_spark_sql.ipynb)
+
+### **1. Combining yellow and green tripdata**<br />
+Assuning the parquet files for the datasets are stored on a ```data/pq/color/year/month``` folder structure:
+```
+df_green = spark.read.parquet('data/pq/green/*/*')
+df_green = df_green \
+    .withColumnRenamed('lpep_pickup_datetime', 'pickup_datetime') \
+    .withColumnRenamed('lpep_dropoff_datetime', 'dropoff_datetime')
+
+df_yellow = spark.read.parquet('data/pq/yellow/*/*')
+df_yellow = df_yellow \
+    .withColumnRenamed('tpep_pickup_datetime', 'pickup_datetime') \
+    .withColumnRenamed('tpep_dropoff_datetime', 'dropoff_datetime')
+```
+* Because the pickup and dropoff column names don't match between the 2 datasets, we use the ```withColumnRenamed``` action to make them have matching names.
+
+We will replicate the [```dm_monthyl_zone_revenue.sql```](https://github.com/HanyingYan/ny_taxi_rides_zoomcamp/blob/main/models/core/dm_monthly_zone_revenue.sql) model in Spark. This model makes use of ```trips_data```, a combined table of yellow and green taxis, so we will create a combined dataframe with the common columns (in oder) to both datasets.
+```
+common_colums = []
+
+yellow_columns = set(df_yellow.columns)
+
+for col in df_green.columns:
+    if col in yellow_columns:
+        common_colums.append(col)
+```
+
+And before we combine the datasets, we need to figure out how we will keep track of the taxi type for each record (the ```service_type``` field in ```dm_monthyl_zone_revenue.sql```). We will add the ```service_type``` column to each dataframe.
+```
+from pyspark.sql import functions as F
+
+df_green_sel = df_green \
+    .select(common_colums) \
+    .withColumn('service_type', F.lit('green'))
+
+df_yellow_sel = df_yellow \
+    .select(common_colums) \
+    .withColumn('service_type', F.lit('yellow'))
+```
+* ```F.lit()``` adds a literal or constant to a dataframe. We use it here to fill the ```service_type ```column with a constant value, which is its corresponging taxi type.
+
+Now we can combine the dataset and count amount of records per service type
+```
+df_trips_data = df_green_sel.unionAll(df_yellow_sel)
+df_trips_data.groupBy('service_type').count().show()
+```
+
+### **2. Querying a dataset with Temporary Tables**<br />
+We can make SQL queries with Spark, but SQL expects a **table** for retrieving records, and a dataframe is not a table, so we need to *register* the dataframe as a table first:
+```
+df_trips_data.registerTempTable('trips_data')
+```
+* This method creates a temporary table with the name ```trips_data```.
+
+With our registered table, we can now perform regular SQL operations.
+```
+spark.sql("""
+SELECT
+    service_type,
+    count(1)
+FROM
+    trips_data
+GROUP BY 
+    service_type
+""").show()
+```
+* This query outputs the same as ```df_trips_data.groupBy('service_type').count().show()```
+* the SQL query is wrapped with 3 double quotes (")
+
+
+The query output can be manipulated as a dataframe, which means that we can perform any queries on our table and manipulate the results with Python as we see fit.
+We can now slightly modify the [```dm_monthyl_zone_revenue.sql```](https://github.com/HanyingYan/ny_taxi_rides_zoomcamp/blob/main/models/core/dm_monthly_zone_revenue.sql), and run it as a query with Spark and store the output in a dataframe:
+```
+df_result = spark.sql("""
+SELECT 
+    -- Reveneue grouping 
+    PULocationID AS revenue_zone,
+    date_trunc('month', pickup_datetime) AS revenue_month, 
+    service_type, 
+
+    -- Revenue calculation 
+    SUM(fare_amount) AS revenue_monthly_fare,
+    SUM(extra) AS revenue_monthly_extra,
+    SUM(mta_tax) AS revenue_monthly_mta_tax,
+    SUM(tip_amount) AS revenue_monthly_tip_amount,
+    SUM(tolls_amount) AS revenue_monthly_tolls_amount,
+    SUM(improvement_surcharge) AS revenue_monthly_improvement_surcharge,
+    SUM(total_amount) AS revenue_monthly_total_amount,
+    SUM(congestion_surcharge) AS revenue_monthly_congestion_surcharge,
+
+    -- Additional calculations
+    AVG(passenger_count) AS avg_montly_passenger_count,
+    AVG(trip_distance) AS avg_montly_trip_distance
+FROM
+    trips_data
+GROUP BY
+    1, 2, 3
+""")
+```
+* We removed the ```with``` statement from the original query because it operates on an external table that Spark does not have access to.
+* We removed the ```count(tripid) as total_monthly_trips```, line in Additional calculations because it also depends on that external table.
+* We change the grouping from field names to references in order to avoid mistakes.
+
+SQL queries are transformations, so we need an action to perform them such as ```df_result.show()```.
+Once we're happy with the output, we can also store it as a parquet file just like any other dataframe by:
+```
+df_result.write.parquet('data/report/revenue/')
+```
+However, with our current dataset, this will create more than 200 parquet files of very small size, which isn't very desirable.
+
+In order to reduce the amount of files, we need to reduce the amount of partitions of the dataset, which is done with the ```coalesce()``` method:
+```
+df_result.coalesce(1).write.parquet('data/report/revenue/', mode='overwrite')
+```
+This reduces the amount of partitions to just 1.
+
+
+[Back to the top](#week-5-overview)
+
+
