@@ -14,6 +14,7 @@
 [5.5.2 - (Optional) Spark RDD mapPartition](#552---optional-spark-rdd-mappartition)<br/>
 [5.6.1 - Connecting to Google Cloud Storage](#561---connecting-to-google-cloud-storage)<br/>
 [5.6.2 - Creating a Local Spark Cluster](#562---creating-a-local-spark-cluster)<br/>
+[5.6.3 - Setting up a Dataproc Cluster](#563---setting-up-a-dataproc-cluster)<br/>
 
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
@@ -1219,5 +1220,73 @@ After you're done running Spark in standalone mode, you will need to manually sh
 ./sbin/stop-worker.sh
 ./sbin/stop-master.sh
 ```
+
+[Back to the top](#week-5-overview)
+
+
+## [5.6.3 - Setting up a Dataproc Cluster](https://www.youtube.com/watch?v=osAiAYahvh8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=56)
+### **1. Creating the cluster**
+[**Dataproc**](https://cloud.google.com/dataproc) is Google's cloud-managed service for running Spark and other data processing tools such as Flink, Presto, etc.
+
+We may access Dataproc from the GCP dashboard and typing ```dataproc``` on the search bar. The first time we access it you will have to enable the API.
+
+Then we create a cluster:
+* We select ```Cluster on Compute Engine```
+* ```Set up cluster```**<br />
+   * We use name ```de-zoomcamp-cluster```
+   * We select the same location of my GCS bucket with region ```europe-west6``` and zone ```europe-west6-a```. 
+   * We would normally choose a ```Standard (1 master, N workers)``` cluster, but her we may also choose ```Single Node (1 master, 0 workers)``` if we just want to experiment and not run any jobs.
+   * Optionally, we may install additional components but we won't be covering them in this lesson. So ```Jupyter Notebook``` and ```Docker``` should be enough for now.
+* ```Configure nodes```, ```Customize cluster``` and ```Manage security``` are optional and we can use the default settings.
+![create_dataproc_cluster.png](./img/create_dataproc_cluster.png)
+* After we click on Create, it will take a few seconds to create the cluster. You may notice an extra VM instance under VMs; that's the Spark instance.
+
+### **2. Running a job with the web UI**
+In a previous section we saw how to connect Spark to our bucket in GCP. However, in Dataproc we don't need to specify this connection because it's already pre-configured for us. We will also submit jobs using a menu, following similar principles to what we saw in the previous section.
+
+In Dataproc's Clusters page
+* Choose the cluster and on the Cluster details page, click on ```Submit job```. 
+* Under Job type choose ```PySpark```, then in Main Python file write the path to your script 
+   * We may upload the script to the bucket and then copy the URL
+   ```
+   gsutil cp 562_spark_sql.py gs://dtc_data_lake_dtc-de-373006/code/562_spark_sql.py
+   ```
+   * Make sure that your script does not specify the ```master``` cluster! Your script should take the connection details from Dataproc; make sure it looks something like this:
+   ```
+   spark = SparkSession.builder \
+      .appName('test') \
+      .getOrCreate()
+   ```
+   * The path we use shoud then be ```gs://dtc_data_lake_dtc-de-373006/code/562_spark_sql.py```
+* We also need to specify arguments, in a similar fashion to what we saw in the previous section, but using the URL's for our folders rather than the local paths:
+   ```
+  --input_green=gs://dtc_data_lake_dtc-de-373006/pq/green/2021/*/ \
+  --input_yellow=gs://dtc_data_lake_dtc-de-373006/pq/yellow/2021/*/ \
+  --output=gs://dtc_data_lake_dtc-de-373006/report-2021
+   ```
+Now press ```Submit```. Sadly there is no easy way to access the Spark dashboard but you can check the status of the job from the Job details page.<br/>
+![dataproc_job_detail.png](./img/dataproc_job_detail.png).<br/>
+Now if we check our GCS bucket, ```report-2021``` should be there.
+
+### **3. Running a job with the gcloud SDK**
+Besides the web UI, there are additional ways to run a job, listed [here](https://cloud.google.com/dataproc/docs/guides/submit-job). 
+The three main ways are 1. web UI; 2. gcloud SDKl; 3. REST API. You can get the detailed information by clicking the ```EQUIVALENT REST``` if you want. But here Let's do the gcloud SDK here.
+
+Before we can submit jobs with the SDK, you will need to grant permissions to the Service Account we've been using so far. Go to ```IAM & Admin``` and edit your Service Account so that the ```Dataproc Administrator``` role is added to it.
+Then we can just run the following commands
+```
+gcloud dataproc jobs submit pyspark \
+   --cluster=de-zoomcamp-cluster \
+   --region=europe-west6 \
+   gs://dtc_data_lake_dtc-de-373006/code/562_spark_sql.py \
+   -- \
+      --input_green=gs://dtc_data_lake_dtc-de-373006/pq/green/2020/*/ \
+      --input_yellow=gs://dtc_data_lake_dtc-de-373006/pq/yellow/2020/*/ \ 
+      --output=gs://dtc_data_lake_dtc-de-373006/report-2020
+```
+We will find two successful jobs finished in the Dataproc Jobs page <br/>
+![dataproc_jobs.png](./img/dataproc_jobs.png).<br/>
+
+And now if we check our GCS bucket, ```report-2020``` should be there.
 
 [Back to the top](#week-5-overview)
