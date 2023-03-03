@@ -15,6 +15,7 @@
 [5.6.1 - Connecting to Google Cloud Storage](#561---connecting-to-google-cloud-storage)<br/>
 [5.6.2 - Creating a Local Spark Cluster](#562---creating-a-local-spark-cluster)<br/>
 [5.6.3 - Setting up a Dataproc Cluster](#563---setting-up-a-dataproc-cluster)<br/>
+[5.6.4 - Connecting Spark to Big Query](#564---connecting-spark-to-big-query)<br/>
 
 
 ## [5.1.1 - Introduction to Batch processing](https://www.youtube.com/watch?v=dcHe5Fl3MF8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
@@ -1281,7 +1282,7 @@ gcloud dataproc jobs submit pyspark \
    gs://dtc_data_lake_dtc-de-373006/code/562_spark_sql.py \
    -- \
       --input_green=gs://dtc_data_lake_dtc-de-373006/pq/green/2020/*/ \
-      --input_yellow=gs://dtc_data_lake_dtc-de-373006/pq/yellow/2020/*/ \ 
+      --input_yellow=gs://dtc_data_lake_dtc-de-373006/pq/yellow/2020/*/ \
       --output=gs://dtc_data_lake_dtc-de-373006/report-2020
 ```
 We will find two successful jobs finished in the Dataproc Jobs page <br/>
@@ -1290,3 +1291,48 @@ We will find two successful jobs finished in the Dataproc Jobs page <br/>
 And now if we check our GCS bucket, ```report-2020``` should be there.
 
 [Back to the top](#week-5-overview)
+
+
+### [5.6.4 - Connecting Spark to Big Query](https://www.youtube.com/watch?v=HIm2BOj8C0Q&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=57)
+Now if we want to connect Spark to Big Query, according to the [dataproc documentation](https://cloud.google.com/dataproc/docs/tutorials/bigquery-connector-spark-example), we can copy the [```562_spark_sql.py```](562_spark_sql.py) to [```564_spark_sql_big_query.py```](564_spark_sql_big_query.py) and modify the last part to
+```
+df_result.write.format('bigquery') \
+    .option('table', output) \
+    .save()
+```
+* we don't need ```coalesce``` here anymore for bigquery
+* we save it as table to the output
+
+We also need to add the ```spark.conf.set``` part in the code to avoid ```Failed to find data source: bigquery``` error.
+```
+spark.conf.set('temporaryGcsBucket', 'dataproc-staging-europe-west6-194215612021-1m2bl5hk')
+```
+* When we create a cluster, it creates a temporary bucket as below:<br/>
+![temp_bucket.png](./img/temp_bucket.png).<br/>
+
+Then we upload the codes 
+```
+sutil cp 564_spark_sql_big_query.py gs://dtc_data_lake_dtc-de-373006/code/564_spark_sql_big_query.py
+```
+
+We can now run the commands
+```
+gcloud dataproc jobs submit pyspark \
+   --cluster=de-zoomcamp-cluster \
+   --region=europe-west6 \
+   --jars=gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-0.23.2.jar \
+   gs://dtc_data_lake_dtc-de-373006/code/564_spark_sql_big_query.py \
+   -- \
+      --input_green=gs://dtc_data_lake_dtc-de-373006/pq/green/2020/*/ \
+      --input_yellow=gs://dtc_data_lake_dtc-de-373006/pq/yellow/2020/*/ \
+      --output=trips_data_all.report-2020
+```
+* compared to 5.6.3, we only need to modify the ```code``` script and the ```output``` parameter.
+* we also need to use a BQ connector, you need to go to the [dataproc documentation](https://cloud.google.com/dataproc/docs/tutorials/bigquery-connector-spark-example) to grab the latest jar.
+* ```--output``` you need to use ```.``` instead of ```/``` to specify the name.
+* After you run the job successfully, you will the following datatable with records.<br/>
+![report-2020.png](./img/report-2020.png)
+
+[Back to the top](#week-5-overview)
+
+
