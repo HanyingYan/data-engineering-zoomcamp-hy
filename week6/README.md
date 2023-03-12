@@ -87,3 +87,5 @@ Now if we go back to our topic, we will see all the messages generated.<br />
 **Note**: if you don't need to use it now, do't forget to shut the connector down by go to the connector and click ```pause``` to save money.
 
 [Back to the top](#week-6-overview)
+
+[Here](https://www.gentlydownthe.stream/) is a gentle introduction to Apache Kafka.
